@@ -1,0 +1,5 @@
+{
+  "name": "Sales SPOC Dashboard",
+  "description": "Real-time event attendance tracker for Sales Single Point of Contacts (SPOCs). Syncs with Google Sheets to provide visibility into assigned leads and their check-in status.",
+  "requestFramePermissions": []
+}

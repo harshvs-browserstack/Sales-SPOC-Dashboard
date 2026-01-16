@@ -1,0 +1,194 @@
+import { Component, input, output } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { Attendee } from '../services/data.service';
+
+@Component({
+  selector: 'app-attendee-detail',
+  standalone: true,
+  imports: [CommonModule],
+  template: `
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6" role="dialog" aria-modal="true">
+      <!-- Backdrop -->
+      <div class="fixed inset-0 bg-gray-900/50 transition-opacity backdrop-blur-sm" (click)="close.emit()"></div>
+
+      <!-- Modal Panel -->
+      <div class="relative w-[90%] transform overflow-hidden rounded-2xl bg-white p-6 text-left shadow-xl transition-all sm:my-8 border-t-4"
+           [class.border-green-500]="attendee().attendance"
+           [class.border-gray-300]="!attendee().attendance">
+        
+        <div class="flex items-start justify-between">
+          <div>
+            <h3 class="text-xl font-bold leading-6 text-gray-900">
+              {{ attendee().fullName }}
+            </h3>
+            <p class="mt-1 text-sm text-gray-500 font-medium">{{ attendee().company }}</p>
+          </div>
+          <button (click)="close.emit()" class="text-gray-400 hover:text-gray-500 bg-gray-50 rounded-full p-1">
+            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="mt-6 space-y-4">
+          <!-- Status Banner & Toggle -->
+          <div class="flex items-center justify-between gap-3 p-3 rounded-lg transition-colors" 
+               [class.bg-green-50]="attendee().attendance" 
+               [class.bg-gray-50]="!attendee().attendance">
+            
+            <div class="flex items-center gap-3"
+               [class.text-green-700]="attendee().attendance"
+               [class.text-gray-700]="!attendee().attendance">
+                @if (attendee().attendance) {
+                  <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-green-600" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div class="text-sm font-semibold">Checked In</div>
+                    @if (attendee().checkInTime) {
+                      <div class="text-xs opacity-75">
+                        {{ attendee().checkInTime | date:'shortTime' }}
+                      </div>
+                    }
+                  </div>
+                } @else {
+                  <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                       <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
+                    </svg>
+                  </div>
+                  <div class="text-sm font-semibold">Registered</div>
+                }
+            </div>
+
+            <button 
+              (click)="updateAttendance.emit()"
+              class="px-3 py-1 text-xs font-semibold rounded-full border shadow-sm transition-all active:scale-95"
+              [class.bg-red-50]="attendee().attendance"
+              [class.text-red-700]="attendee().attendance"
+              [class.border-red-200]="attendee().attendance"
+              [class.hover:bg-red-100]="attendee().attendance"
+              [class.bg-green-50]="!attendee().attendance"
+              [class.text-green-700]="!attendee().attendance"
+              [class.border-green-200]="!attendee().attendance"
+              [class.hover:bg-green-100]="!attendee().attendance">
+              {{ attendee().attendance ? 'Undo Check-in' : 'Check In' }}
+            </button>
+          </div>
+
+          <!-- Key Intel Grid -->
+          <div class="grid grid-cols-2 gap-4">
+            <div class="bg-gray-50 p-3 rounded-lg">
+              <span class="block text-xs font-medium text-gray-500 uppercase tracking-wider">Lanyard</span>
+              
+              @if (isAdmin()) {
+                 <select 
+                   [value]="attendee().lanyardColor" 
+                   (change)="onColorChange($event)"
+                   class="mt-1 block w-full rounded-md border-gray-300 py-1 pl-1 pr-8 text-sm focus:border-blue-500 focus:ring-blue-500 bg-white shadow-sm border">
+                   @for(color of lanyardColors; track color) {
+                     <option [value]="color">{{color}}</option>
+                   }
+                 </select>
+              } @else {
+                <span class="block mt-1 text-sm font-semibold text-gray-900 flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full ring-1 ring-inset ring-black/10" 
+                        [style.background-color]="getLanyardHex(attendee().lanyardColor)"></span>
+                  {{ attendee().lanyardColor || 'N/A' }}
+                </span>
+              }
+            </div>
+            
+            <div class="bg-gray-50 p-3 rounded-lg">
+               <span class="block text-xs font-medium text-gray-500 uppercase tracking-wider">Segment</span>
+               <span class="block mt-1 text-sm font-semibold text-gray-900">{{ attendee().segment || 'General' }}</span>
+            </div>
+          </div>
+
+          <!-- Contact Info -->
+          <div class="border-t border-gray-100 pt-4">
+            <h4 class="text-xs font-semibold text-gray-500 uppercase mb-3">Contact Information</h4>
+            <div class="space-y-3">
+              <div class="flex items-center gap-3 text-sm text-gray-600">
+                <svg class="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+                <a [href]="'mailto:' + attendee().email" class="hover:text-blue-600 truncate">{{ attendee().email }}</a>
+              </div>
+              @if (attendee().contact) {
+              <div class="flex items-center gap-3 text-sm text-gray-600 group">
+                <svg class="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                </svg>
+                <a [href]="'tel:' + attendee().contact" class="hover:text-blue-600">{{ attendee().contact }}</a>
+                <button (click)="copyToClipboard(attendee().contact)" 
+                        class="text-gray-400 hover:text-blue-600 p-1 rounded-md hover:bg-gray-100 transition-colors" 
+                        title="Copy number">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                </button>
+              </div>
+              }
+            </div>
+          </div>
+
+          <!-- Intel / Notes Area (Scrollable) -->
+          <div class="border-t border-gray-100 pt-4">
+            <h4 class="text-xs font-semibold text-gray-500 uppercase mb-2">Talking Points / Intel</h4>
+            <div class="bg-yellow-50 text-yellow-800 text-sm p-3 rounded-md border border-yellow-100 max-h-[140px] overflow-y-auto">
+              @if (attendee().leadIntel) {
+                <p>{{ attendee().leadIntel }}</p>
+              } @else {
+                <p class="italic text-gray-500">No specific intel available.</p>
+              }
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-8 flex gap-3">
+          <button (click)="close.emit()" class="flex-1 bg-white text-gray-700 border border-gray-300 font-semibold py-2 px-4 rounded-lg hover:bg-gray-50">
+            Close
+          </button>
+          <button class="flex-1 bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 shadow-sm flex items-center justify-center gap-2">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            Add Note
+          </button>
+        </div>
+      </div>
+    </div>
+  `
+})
+export class AttendeeDetailComponent {
+  attendee = input.required<Attendee>();
+  isAdmin = input<boolean>(false);
+  close = output<void>();
+  updateLanyard = output<string>();
+  updateAttendance = output<void>();
+
+  lanyardColors = ['Green', 'Yellow', 'Crimson Red', 'Charcoal Grey'];
+
+  getLanyardHex(color: string): string {
+    const c = color?.toLowerCase() || '';
+    if (c.includes('green')) return '#16a34a';
+    if (c.includes('yellow')) return '#ca8a04';
+    if (c.includes('red') || c.includes('crimson')) return '#dc2626';
+    if (c.includes('grey') || c.includes('gray')) return '#4b5563';
+    return '#9ca3af';
+  }
+
+  copyToClipboard(text: string) {
+    if (navigator.clipboard && text) {
+      navigator.clipboard.writeText(text);
+    }
+  }
+
+  onColorChange(event: Event) {
+    const select = event.target as HTMLSelectElement;
+    this.updateLanyard.emit(select.value);
+  }
+}
