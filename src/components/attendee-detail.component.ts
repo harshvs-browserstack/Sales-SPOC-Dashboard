@@ -1,11 +1,12 @@
-import { Component, input, output } from '@angular/core';
+import { Component, input, output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { Attendee } from '../services/data.service';
 
 @Component({
   selector: 'app-attendee-detail',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   template: `
     <div class="relative z-50" aria-labelledby="modal-title" role="dialog" aria-modal="true">
       <!-- Backdrop -->
@@ -72,7 +73,8 @@ import { Attendee } from '../services/data.service';
                 @if (!attendee().attendance || isAdmin()) {
                   <button 
                     (click)="updateAttendance.emit()"
-                    class="px-3 py-1 text-xs font-semibold rounded-full border shadow-sm transition-all active:scale-95"
+                    [disabled]="isEditingNote()"
+                    class="px-3 py-1 text-xs font-semibold rounded-full border shadow-sm transition-all active:scale-95 disabled:opacity-50"
                     [class.bg-red-50]="attendee().attendance"
                     [class.text-red-700]="attendee().attendance"
                     [class.border-red-200]="attendee().attendance"
@@ -104,9 +106,10 @@ import { Attendee } from '../services/data.service';
                   
                   @if (isAdmin()) {
                      <select 
-                       [value]="attendee().lanyardColor" 
-                       (change)="onColorChange($event)"
-                       class="mt-1 block w-full rounded-md border border-gray-300 bg-white py-2 px-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500">
+                       [ngModel]="attendee().lanyardColor" 
+                       (ngModelChange)="updateLanyard.emit($event)"
+                       [disabled]="isEditingNote()"
+                       class="mt-1 block w-full rounded-md border border-gray-300 bg-white py-2 px-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 disabled:opacity-50">
                        @for(color of lanyardColors; track color) {
                          <option [value]="color">{{color}}</option>
                        }
@@ -154,7 +157,7 @@ import { Attendee } from '../services/data.service';
                 </div>
               </div>
 
-              <!-- Intel / Notes Area (Fully Expanded) -->
+              <!-- Intel -->
               <div class="border-t border-gray-100 pt-4">
                 <h4 class="text-xs font-semibold text-gray-500 uppercase mb-2">Talking Points / Intel</h4>
                 <div class="bg-yellow-50 text-yellow-800 text-sm p-3 rounded-md border border-yellow-100">
@@ -167,31 +170,59 @@ import { Attendee } from '../services/data.service';
               </div>
 
               <!-- User Notes Section -->
-              @if (attendee().notes) {
-                <div class="border-t border-gray-100 pt-4">
-                  <h4 class="text-xs font-semibold text-gray-500 uppercase mb-2">Notes</h4>
-                  <div class="bg-blue-50 text-blue-900 text-sm p-3 rounded-md border border-blue-100 whitespace-pre-line">
-                     {{ attendee().notes }}
+              <div class="border-t border-gray-100 pt-4">
+                <h4 class="text-xs font-semibold text-gray-500 uppercase mb-2">Notes</h4>
+                @if (!isEditingNote()) {
+                  @if (attendee().notes) {
+                    <div class="bg-blue-50 text-blue-900 text-sm p-3 rounded-md border border-blue-100 whitespace-pre-line">
+                       {{ attendee().notes }}
+                    </div>
+                  } @else {
+                    <div class="text-sm p-3 text-gray-500 italic">No notes added yet.</div>
+                  }
+                } @else {
+                  <div>
+                    <textarea 
+                      rows="4"
+                      class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-white text-gray-900"
+                      [ngModel]="noteText()"
+                      (ngModelChange)="noteText.set($event)"
+                      placeholder="Add your notes here..."></textarea>
                   </div>
-                </div>
+                }
+              </div>
+            </div>
+
+            <!-- Modal Actions -->
+            <div class="mt-8 flex gap-3">
+              @if (!isEditingNote()) {
+                <button (click)="close.emit()" class="flex-1 bg-white text-gray-700 border border-gray-300 font-semibold py-2 px-4 rounded-lg hover:bg-gray-50">
+                  Close
+                </button>
+                <button 
+                  (click)="onAddNoteClick()"
+                  class="flex-1 bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 shadow-sm flex items-center justify-center gap-2">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  {{ attendee().notes ? 'Edit Note' : 'Add Note' }}
+                </button>
+              } @else {
+                <button (click)="cancelNoteEdit()" class="flex-1 bg-white text-gray-700 border border-gray-300 font-semibold py-2 px-4 rounded-lg hover:bg-gray-50">
+                  Cancel
+                </button>
+                <button 
+                  (click)="saveNote()"
+                  class="flex-1 bg-green-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-700 shadow-sm flex items-center justify-center gap-2">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                  Save Note
+                </button>
               }
             </div>
 
-            <div class="mt-8 flex gap-3">
-              <button (click)="close.emit()" class="flex-1 bg-white text-gray-700 border border-gray-300 font-semibold py-2 px-4 rounded-lg hover:bg-gray-50">
-                Close
-              </button>
-              <button 
-                (click)="onAddNote()"
-                class="flex-1 bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 shadow-sm flex items-center justify-center gap-2">
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
-                {{ attendee().notes ? 'Edit Note' : 'Add Note' }}
-              </button>
-            </div>
           </div>
-
         </div>
       </div>
     </div>
@@ -206,30 +237,36 @@ export class AttendeeDetailComponent {
   updateAttendance = output<void>();
   updateNote = output<string>();
 
+  isEditingNote = signal(false);
+  noteText = signal('');
+
   // Config for lanyard selector
   lanyardColors = ['Green', 'Yellow', 'Red', 'Blue', 'Grey', 'Purple', 'Orange'];
 
   getLanyardHex(color: string | undefined): string {
     const c = color?.toLowerCase() || '';
     if (c.includes('green')) return '#16a34a';
-    if (c.includes('yellow')) return '#ca8a04';
+    if (c.includes('yellow') || c.includes('gold')) return '#ca8a04';
     if (c.includes('red') || c.includes('crimson')) return '#dc2626';
-    if (c.includes('grey') || c.includes('gray')) return '#4b5563';
     if (c.includes('blue')) return '#2563eb';
+    if (c.includes('purple') || c.includes('violet')) return '#9333ea';
+    if (c.includes('orange')) return '#ea580c';
+    if (c.includes('grey') || c.includes('gray')) return '#4b5563';
     return '#9ca3af';
   }
 
-  onColorChange(event: Event) {
-    const val = (event.target as HTMLSelectElement).value;
-    this.updateLanyard.emit(val);
+  onAddNoteClick() {
+    this.noteText.set(this.attendee().notes || '');
+    this.isEditingNote.set(true);
   }
 
-  onAddNote() {
-    const current = this.attendee().notes || '';
-    const newNote = prompt('Enter/Edit note:', current);
-    if (newNote !== null) {
-      this.updateNote.emit(newNote);
-    }
+  saveNote() {
+    this.updateNote.emit(this.noteText());
+    this.isEditingNote.set(false);
+  }
+
+  cancelNoteEdit() {
+    this.isEditingNote.set(false);
   }
 
   copyToClipboard(val: string) {
