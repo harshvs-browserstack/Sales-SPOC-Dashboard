@@ -1,12 +1,12 @@
 import { Component, inject } from '@angular/core';
-import { SpocDashboardComponent } from './components/spoc-dashboard.component';
+import { RouterOutlet } from '@angular/router';
 import { DataService } from './services/data.service';
 import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [SpocDashboardComponent, CommonModule],
+  imports: [RouterOutlet, CommonModule],
   template: `
     <div class="min-h-screen flex flex-col">
       <!-- Top Navigation Bar -->
@@ -20,9 +20,13 @@ import { CommonModule } from '@angular/common';
           </div>
           <div class="flex items-center gap-4 text-sm text-gray-500">
              @if (dataService.sheetName()) {
-               <span class="hidden sm:inline">Event: <span class="font-medium text-gray-900">{{ dataService.sheetName() }}</span></span>
+               <!-- Fixed mobile visibility: Removed hidden class, adjusted text sizing -->
+               <span class="flex items-center gap-1">
+                 <span class="hidden sm:inline">Event:</span> 
+                 <span class="font-medium text-gray-900">{{ dataService.sheetName() }}</span>
+               </span>
              } @else {
-               <span class="hidden sm:inline italic text-gray-400">No Sheet Loaded</span>
+               <span class="italic text-gray-400 text-xs sm:text-sm">No Sheet Loaded</span>
              }
           </div>
         </div>
@@ -30,7 +34,7 @@ import { CommonModule } from '@angular/common';
 
       <!-- Main Content Area -->
       <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <app-spoc-dashboard />
+        <router-outlet />
       </main>
     </div>
   `

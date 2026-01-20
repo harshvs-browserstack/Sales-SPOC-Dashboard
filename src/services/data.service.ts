@@ -13,6 +13,7 @@ export interface Attendee {
   attendance: boolean;
   spocName: string;
   spocEmail: string;
+  spocSlack?: string; // New field
   checkInTime: Date | null;
   printStatus: string;
   leadIntel?: string; // Column Q (Account Intel)
@@ -94,6 +95,89 @@ export class DataService {
       email: attendee.email,
       notes: note
     });
+  }
+  
+  async addWalkInAttendee(data: { fullName: string; email: string; company: string; contact?: string }, sheetUrlOverride?: string): Promise<boolean> {
+    // Fallback to internal state if override not provided, but override allows adding before 'sync' click
+    const sheet = sheetUrlOverride || this.currentSheetUrl();
+    const sheetName = this.sheetName();
+    
+    if (!this.HARDCODED_SCRIPT_URL || !sheet) {
+      console.error('Missing configuration: Script URL or Sheet URL');
+      return false;
+    }
+
+    // 1. Create a temporary ID
+    const newId = crypto.randomUUID();
+
+    // 2. Split Full Name logic
+    const nameParts = data.fullName.trim().split(/\s+/);
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+    
+    // 3. Optimistic UI Update
+    // We construct a new attendee object
+    const newAttendee: Attendee = {
+      id: newId,
+      fullName: data.fullName,
+      email: data.email,
+      company: data.company,
+      contact: data.contact || '',
+      firstName: firstName,
+      lastName: lastName,
+      attendance: true, // Auto checked-in
+      checkInTime: new Date(),
+      segment: 'Walk-in',
+      spocName: 'Walk-in', // Will be updated by backend response
+      spocEmail: '',
+      lanyardColor: 'Yellow', // Default per request
+      printStatus: '',
+      leadIntel: '',
+      notes: ''
+    };
+    
+    this.rawAttendees.update(prev => [newAttendee, ...prev]);
+
+    try {
+      const params = new URLSearchParams({
+        action: 'add',
+        sheetUrl: sheet
+      });
+      if (sheetName) params.append('sheetName', sheetName);
+
+      // Construct payload with explicit split names and default color
+      const payload = {
+        ...data,
+        firstName,
+        lastName,
+        lanyardColor: 'Yellow'
+      };
+
+      const response = await fetch(`${this.HARDCODED_SCRIPT_URL}?${params.toString()}`, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      const res = await response.json();
+      
+      // Update optimistic data with backend calculated fields (SPOC, Print Status formulas)
+      if (res.status === 'success' && res.updatedFields) {
+         console.log('Backend returned calculated fields:', res.updatedFields);
+         this.rawAttendees.update(attendees => 
+           attendees.map(a => a.id === newId ? { ...a, ...res.updatedFields } : a)
+         );
+      } else if (res.status === 'success' && res.spoc) {
+         // Fallback for older script version
+         this.rawAttendees.update(attendees => 
+           attendees.map(a => a.id === newId ? { ...a, spocName: res.spoc } : a)
+         );
+      }
+
+      return res.status === 'success';
+    } catch (err) {
+      console.error('Failed to add walk-in:', err);
+      // Optional: Rollback UI update here if strict consistency needed
+      return false;
+    }
   }
 
   // --- NETWORKING ---
@@ -270,6 +354,7 @@ export class DataService {
         attendance: attendanceBool,
         spocName: spocVal,
         spocEmail: this.cleanString(get('spocEmail', 'SPoC email', 'spoc_email')),
+        spocSlack: this.cleanString(get('spocSlack', 'SPoC slack', 'spoc_slack')),
         printStatus: this.cleanString(get('printStatus', 'Print Status')),
         checkInTime: checkInDate,
         leadIntel: this.cleanString(get('leadIntel', 'Account Intel', 'Lead Intel', 'talking points', 'Intel')),

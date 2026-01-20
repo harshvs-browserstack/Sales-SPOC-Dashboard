@@ -110,7 +110,8 @@ import { Attendee } from '../services/data.service';
                        (ngModelChange)="updateLanyard.emit($event)"
                        [disabled]="isEditingNote()"
                        class="mt-1 block w-full rounded-md border border-gray-300 bg-white py-2 px-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 disabled:opacity-50">
-                       @for(color of lanyardColors; track color) {
+                       <option [ngValue]="''">Select Color</option>
+                       @for(color of availableColors(); track color) {
                          <option [value]="color">{{color}}</option>
                        }
                      </select>
@@ -231,6 +232,7 @@ import { Attendee } from '../services/data.service';
 export class AttendeeDetailComponent {
   attendee = input.required<Attendee>();
   isAdmin = input<boolean>(false);
+  availableColors = input<string[]>([]);
   
   close = output<void>();
   updateLanyard = output<string>();
@@ -239,9 +241,6 @@ export class AttendeeDetailComponent {
 
   isEditingNote = signal(false);
   noteText = signal('');
-
-  // Config for lanyard selector
-  lanyardColors = ['Green', 'Yellow', 'Red', 'Blue', 'Grey', 'Purple', 'Orange'];
 
   getLanyardHex(color: string | undefined): string {
     const c = color?.toLowerCase() || '';
