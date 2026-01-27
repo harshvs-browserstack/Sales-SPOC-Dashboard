@@ -78,22 +78,24 @@ import { AttendeeDetailComponent } from './attendee-detail.component';
           <!-- Filters Row -->
           <div class="flex flex-col md:flex-row gap-3 items-center justify-between">
              
-             <!-- SPOC Dropdown -->
-             <div class="w-full md:w-auto">
-               <select 
-                 [ngModel]="selectedSpoc()" 
-                 (ngModelChange)="selectedSpoc.set($event)"
-                 class="block w-full md:w-64 pl-3 pr-8 py-2.5 text-base border-gray-300 focus:outline-none sm:text-sm rounded-lg bg-white border text-gray-900 shadow-sm"
-                 [class.focus:ring-teal-500]="mode() === 'admin'"
-                 [class.focus:border-teal-500]="mode() === 'admin'"
-                 [class.focus:ring-blue-500]="mode() === 'spoc'"
-                 [class.focus:border-blue-500]="mode() === 'spoc'">
-                 <option value="All">All SPOCs</option>
-                 @for (spoc of uniqueSpocs(); track spoc) {
-                   <option [value]="spoc">{{ spoc }}</option>
-                 }
-               </select>
-             </div>
+             <!-- SPOC Dropdown (Only for SPOC view) -->
+             @if (mode() === 'spoc') {
+               <div class="w-full md:w-auto">
+                 <select 
+                   [ngModel]="selectedSpoc()" 
+                   (ngModelChange)="selectedSpoc.set($event)"
+                   class="block w-full md:w-64 pl-3 pr-8 py-2.5 text-base border-gray-300 focus:outline-none sm:text-sm rounded-lg bg-white border text-gray-900 shadow-sm"
+                   [class.focus:ring-teal-500]="mode() === 'admin'"
+                   [class.focus:border-teal-500]="mode() === 'admin'"
+                   [class.focus:ring-blue-500]="mode() === 'spoc'"
+                   [class.focus:border-blue-500]="mode() === 'spoc'">
+                   <option value="All">All SPOCs</option>
+                   @for (spoc of uniqueSpocs(); track spoc) {
+                     <option [value]="spoc">{{ spoc }}</option>
+                   }
+                 </select>
+               </div>
+             }
 
              <!-- Filter Buttons (Responsive Tabs) -->
              <div class="w-full md:w-auto flex gap-2 overflow-x-auto pb-1 md:pb-0">
@@ -151,19 +153,17 @@ import { AttendeeDetailComponent } from './attendee-detail.component';
 
         <!-- Stats - Only show for SPOC -->
         @if (mode() === 'spoc') {
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div class="grid gap-4" [class]="filterStatus() === 'all' ? 'grid-cols-1 md:grid-cols-3' : 'grid-cols-1 md:grid-cols-2'">
             <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
               <p class="text-xs font-semibold text-gray-500 uppercase">Total</p>
               <p class="mt-1 text-2xl font-bold text-gray-900">{{ stats().total }}</p>
             </div>
-            <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm border-l-4 border-l-green-500">
-              <p class="text-xs font-semibold text-green-600 uppercase">Checked In</p>
-              <p class="mt-1 text-2xl font-bold text-gray-900">{{ stats().checkedIn }}</p>
-            </div>
-            <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-              <p class="text-xs font-semibold text-gray-500 uppercase">Pending</p>
-              <p class="mt-1 text-2xl font-bold text-gray-900">{{ stats().pending }}</p>
-            </div>
+            @if (filterStatus() === 'all') {
+              <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm border-l-4 border-l-green-500">
+                <p class="text-xs font-semibold text-green-600 uppercase">Checked In</p>
+                <p class="mt-1 text-2xl font-bold text-gray-900">{{ stats().checkedIn }}</p>
+              </div>
+            }
             <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
               <p class="text-xs font-semibold uppercase text-blue-600">Rate</p>
               <p class="mt-1 text-2xl font-bold text-blue-600">{{ stats().rate }}%</p>
