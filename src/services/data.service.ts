@@ -19,6 +19,7 @@ export interface Attendee {
   leadIntel?: string;
   notes?: string;
   title?: string;
+  linkedin?: string;
 }
 
 export interface SavedEvent {
@@ -44,16 +45,65 @@ export class DataService {
     this.loadEventsFromStorage();
   }
 
+  // --- SAFE JSON PARSER ---
+  private async safeJson(response: Response): Promise<any> {
+    try {
+      if (!response) return {};
+      
+      const text = await response.text();
+      
+      // Ensure text is actually a string
+      if (text === undefined || text === null || typeof text !== 'string') {
+        return {};
+      }
+
+      const trimmed = text.trim();
+      
+      // Guard against common non-JSON responses
+      // "undefined" string check is important for Google Apps Script empty returns
+      if (!trimmed || trimmed === 'undefined' || trimmed === 'null') {
+        return {};
+      }
+
+      // Pre-check for JSON structure to avoid SyntaxError on HTML or plain text
+      if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
+        return {};
+      }
+
+      return JSON.parse(trimmed);
+    } catch (e) {
+      console.warn('Failed to parse JSON response.', e);
+      return {};
+    }
+  }
+
   // --- EVENT MANAGEMENT ---
   
   private loadEventsFromStorage() {
-    const data = localStorage.getItem('stack_connect_events');
-    if (data) {
-      try {
-        this.savedEvents.set(JSON.parse(data));
-      } catch (e) {
-        console.error('Failed to parse saved events');
+    try {
+      // Safety check for SSR or environments without localStorage
+      if (typeof localStorage === 'undefined') return;
+
+      const data = localStorage.getItem('stack_connect_events');
+      
+      // Explicitly check for null/undefined value
+      if (data === null || data === undefined) return;
+
+      const cleanData = data.trim();
+      
+      // Strict check: valid JSON for our purposes must be an array or object.
+      // This prevents 'undefined', 'null', or plain strings from being parsed.
+      if (!cleanData || (!cleanData.startsWith('[') && !cleanData.startsWith('{'))) {
+        return;
       }
+
+      const parsed = JSON.parse(cleanData);
+      if (Array.isArray(parsed)) {
+          this.savedEvents.set(parsed);
+      }
+    } catch (e) {
+      console.error('Error loading events from storage, clearing corrupt data:', e);
+      try { localStorage.removeItem('stack_connect_events'); } catch {}
     }
   }
 
@@ -79,7 +129,14 @@ export class DataService {
   }
 
   private persistEvents() {
-    localStorage.setItem('stack_connect_events', JSON.stringify(this.savedEvents()));
+    const events = this.savedEvents();
+    if (events) {
+        try {
+          localStorage.setItem('stack_connect_events', JSON.stringify(events));
+        } catch (e) {
+          console.error('Failed to save to localStorage', e);
+        }
+    }
   }
 
   // --- NEW: Get event from master log ---
@@ -88,7 +145,7 @@ export class DataService {
     
     try {
       const response = await fetch(`${this.HARDCODED_SCRIPT_URL}?action=get_event&eventId=${eventId}`);
-      const data = await response.json();
+      const data = await this.safeJson(response);
       
       if (data.status === 'success' && data.event) {
         const event: SavedEvent = {
@@ -140,7 +197,7 @@ export class DataService {
           createdAt: eventData.createdAt
         })
       });
-      const result = await response.json();
+      const result = await this.safeJson(response);
       if (result.status === 'success') {
         console.log('✓ Event logged to master sheet');
       } else {
@@ -265,7 +322,7 @@ export class DataService {
         body: JSON.stringify(payload)
       });
 
-      const res = await response.json();
+      const res = await this.safeJson(response);
 
       if (this.currentSheetUrl() === sheet) {
         if (res.status === 'success' && res.updatedFields) {
@@ -308,6 +365,7 @@ export class DataService {
         method: 'POST',
         body: JSON.stringify(payload)
       });
+      // Fire and forget
       console.log('Synced to sheet successfully');
     } catch (err) {
       console.error('Failed to sync change to sheet:', err);
@@ -331,7 +389,7 @@ export class DataService {
       if (sheetName) params.append('sheetName', sheetName);
 
       const response = await fetch(`${this.HARDCODED_SCRIPT_URL}?${params.toString()}`);
-      const json = await response.json();
+      const json = await this.safeJson(response);
 
       if (json.sheetName) {
         this.sheetName.set(json.sheetName);
@@ -357,7 +415,7 @@ export class DataService {
     if (!this.HARDCODED_SCRIPT_URL) return [];
     try {
       const response = await fetch(`${this.HARDCODED_SCRIPT_URL}?action=metadata&sheetUrl=${encodeURIComponent(sheetUrl)}`);
-      const json = await response.json();
+      const json = await this.safeJson(response);
       if (json.status === 'success' && Array.isArray(json.sheets)) {
         return json.sheets;
       }
@@ -437,6 +495,11 @@ export class DataService {
                              String(attendanceVal).toLowerCase() === 'true' || 
                              String(attendanceVal).toLowerCase() === 'checked in';
 
+      // NEW: Parse Title and LinkedIn
+      const titleVal = this.cleanString(get('title', 'Title', 'Designation', 'Job Title', 'Role', 'position'));
+      const linkedinVal = this.cleanString(get('linkedin', 'LinkedIn', 'Linkedin Profile', 'LinkedIn URL', 'Profile Link', 'linked_in', 'linkedin_url'));
+
+
       return {
         id: crypto.randomUUID(),
         fullName: full,
@@ -454,7 +517,9 @@ export class DataService {
         printStatus: this.cleanString(get('printStatus', 'Print Status')),
         checkInTime: checkInDate,
         leadIntel: this.cleanString(get('leadIntel', 'Account Intel', 'Lead Intel', 'talking points', 'Intel')),
-        notes: this.cleanString(get('notes', 'Note', 'Notes', 'Comment', 'Comments', 'Feedback'))
+        notes: this.cleanString(get('notes', 'Note', 'Notes', 'Comment', 'Comments', 'Feedback')),
+        title: titleVal,
+        linkedin: linkedinVal
       };
     });
 

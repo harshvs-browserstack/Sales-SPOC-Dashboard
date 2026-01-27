@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, input, OnInit } from '@angular/core';
+import { Component, inject, signal, computed, input, OnInit, OnDestroy, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -200,14 +200,15 @@ import { AttendeeDetailComponent } from './attendee-detail.component';
               </thead>
               <tbody class="bg-white divide-y divide-gray-200">
                 @for (group of groupedAttendees(); track group.name) {
-                  <!-- Group Header for SPOC -->
-                  @if (mode() === 'spoc' && groupedAttendees().length > 1) {
-                    <tr class="bg-gray-50/80 border-b border-gray-200">
-                      <td [attr.colspan]="5" class="px-6 py-2 text-xs font-bold text-gray-500 uppercase tracking-wider">
-                        {{ group.name }}
-                      </td>
-                    </tr>
-                  }
+                  <!-- Explicit Group Header -->
+                  <tr class="bg-gray-50 border-b border-gray-200">
+                    <td [attr.colspan]="5" class="px-6 py-2.5">
+                      <div class="flex items-center gap-2">
+                         <span class="text-xs font-bold text-gray-600 uppercase tracking-wider">{{ group.name }}</span>
+                         <span class="text-[10px] font-semibold text-gray-400 bg-white border border-gray-200 px-1.5 rounded-full">{{ group.items.length }}</span>
+                      </div>
+                    </td>
+                  </tr>
 
                   @for (attendee of group.items; track attendee.id) {
                     <tr class="transition-colors border-b border-gray-100 last:border-0 hover:bg-gray-50" 
@@ -224,10 +225,27 @@ import { AttendeeDetailComponent } from './attendee-detail.component';
                             {{ attendee.firstName.charAt(0) }}{{ attendee.lastName.charAt(0) }}
                           </div>
                           <div class="ml-4">
-                            <div class="text-sm font-bold text-gray-900">{{ attendee.fullName }}</div>
-                            <div class="text-sm text-gray-500">{{ attendee.company }}</div>
+                            <div class="flex items-center gap-2">
+                              <div class="text-sm font-bold text-gray-900">{{ attendee.fullName }}</div>
+                              @if (mode() === 'spoc' && attendee.linkedin) {
+                                <a [href]="attendee.linkedin" target="_blank" (click)="$event.stopPropagation()" class="text-[#0077b5] hover:opacity-80 transition-opacity">
+                                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                      <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/>
+                                  </svg>
+                                </a>
+                              }
+                            </div>
+                            
+                            <!-- Designation/Title for SPOC -->
+                            @if (mode() === 'spoc' && attendee.title) {
+                              <div class="text-xs text-gray-600 font-medium">{{ attendee.title }}</div>
+                            }
+
+                            <!-- Company Name (Always show for context, even if grouped) -->
+                            <div class="text-xs text-gray-500 mt-0.5">{{ attendee.company }}</div>
+                            
                             @if (attendee.segment === 'Walk-in') {
-                              <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 mt-1">
+                              <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-800 mt-1">
                                 Walk-in
                               </span>
                             }
@@ -256,7 +274,8 @@ import { AttendeeDetailComponent } from './attendee-detail.component';
                           {{ attendee.lanyardColor }}
                         </div>
                         @if (attendee.printStatus && mode() === 'admin') {
-                          <div class="text-xs text-gray-400 mt-1">
+                          <div class="flex items-center gap-1 text-xs font-semibold text-purple-700 mt-1 bg-purple-50 px-2 py-0.5 rounded-full w-fit">
+                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
                             {{ attendee.printStatus }}
                           </div>
                         }
@@ -309,6 +328,12 @@ import { AttendeeDetailComponent } from './attendee-detail.component';
         <div class="md:hidden space-y-6">
           @for (group of groupedAttendees(); track group.name) {
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+               <!-- Explicit Group Header -->
+               <div class="bg-gray-50 px-4 py-3 border-b border-gray-200 flex justify-between items-center sticky top-0 z-0">
+                  <span class="font-bold text-gray-700 text-sm uppercase tracking-wide">{{ group.name }}</span>
+                  <span class="text-xs font-semibold text-gray-500 bg-white border border-gray-200 px-2 py-0.5 rounded-full">{{ group.items.length }}</span>
+               </div>
+
                <!-- Items in Group -->
                @for (attendee of group.items; track attendee.id; let last = $last) {
                   <div class="relative p-4 flex items-center justify-between group transition-colors hover:bg-gray-50"
@@ -328,9 +353,31 @@ import { AttendeeDetailComponent } from './attendee-detail.component';
                           
                           <!-- Info -->
                           <div class="min-w-0">
-                             <h4 class="text-sm font-bold text-gray-900 truncate leading-tight">{{ attendee.fullName }}</h4>
-                             <p class="text-xs text-gray-500 font-medium truncate mt-0.5">{{ attendee.company }}</p>
-                             <p class="text-xs text-gray-400 mt-0.5 truncate">{{ attendee.lanyardColor }}</p>
+                             <h4 class="text-sm font-bold text-gray-900 truncate leading-tight flex items-center gap-2">
+                                {{ attendee.fullName }}
+                                @if (mode() === 'spoc' && attendee.linkedin) {
+                                  <a [href]="attendee.linkedin" target="_blank" (click)="$event.stopPropagation()" class="text-[#0077b5]">
+                                    <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
+                                  </a>
+                                }
+                             </h4>
+                             
+                             @if (mode() === 'spoc' && attendee.title) {
+                                <p class="text-xs text-gray-600 truncate font-medium">{{ attendee.title }}</p>
+                             }
+
+                             <p class="text-xs text-gray-500 truncate mt-0.5">{{ attendee.company }}</p>
+                             
+                             <div class="flex flex-wrap gap-2 mt-1">
+                               <span class="text-[10px] text-gray-400 border border-gray-100 rounded px-1">{{ attendee.lanyardColor }}</span>
+                               
+                               @if (mode() === 'admin' && attendee.printStatus) {
+                                  <span class="text-[10px] font-bold text-purple-700 bg-purple-50 border border-purple-100 rounded px-1 flex items-center gap-1">
+                                    <svg class="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
+                                    {{ attendee.printStatus }}
+                                  </span>
+                               }
+                             </div>
                           </div>
                        </div>
 
@@ -421,7 +468,7 @@ import { AttendeeDetailComponent } from './attendee-detail.component';
     </div>
   `
 })
-export class SpocDashboardComponent implements OnInit {
+export class SpocDashboardComponent implements OnInit, OnDestroy {
   dataService = inject(DataService);
   router = inject(Router);
 
@@ -444,9 +491,50 @@ export class SpocDashboardComponent implements OnInit {
   walkInForm = { fullName: '', email: '', company: '', contact: '' };
 
   allAttendees = this.dataService.getAttendees();
+  
+  private syncInterval: any;
+
+  constructor() {
+    // If we have an open modal (selectedAttendee), and the data refreshes from the backend (allAttendees),
+    // we need to re-bind the selectedAttendee to the new object in the array to ensure
+    // that any actions (like edits or status toggles) use the freshest object reference.
+    // This also handles the case where IDs might be regenerated by the backend parser.
+    effect(() => {
+      const all = this.allAttendees();
+      const selected = this.selectedAttendee();
+      
+      if (selected && all.length > 0) {
+        // Try to find the same attendee in the new list
+        // First by ID (if stable)
+        let match = all.find(a => a.id === selected.id);
+        
+        // Fallback to email if ID changed (e.g. parser regeneration)
+        if (!match && selected.email) {
+           match = all.find(a => a.email.toLowerCase() === selected.email.toLowerCase());
+        }
+
+        if (match && match !== selected) {
+           // Update the reference silently so the modal stays open with fresh data
+           this.selectedAttendee.set(match);
+        }
+      }
+    });
+  }
 
   async ngOnInit() {
     await this.initializeDashboard();
+
+    // Auto-sync every 5 minutes (300,000 ms)
+    this.syncInterval = setInterval(() => {
+      console.log('Auto-syncing data...');
+      this.syncData();
+    }, 5 * 60 * 1000);
+  }
+
+  ngOnDestroy() {
+    if (this.syncInterval) {
+      clearInterval(this.syncInterval);
+    }
   }
 
   async initializeDashboard() {
