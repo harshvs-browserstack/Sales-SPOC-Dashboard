@@ -228,17 +228,17 @@ export class LandingPageComponent {
       const baseUrl = window.location.origin + window.location.pathname + '#';
       const deskLink = `${baseUrl}/event/${event.id}/desk`;
       const spocLink = `${baseUrl}/event/${event.id}/spoc`;
-      const walkinLink = `${baseUrl}/event/${event.id}/walkin`;
+      const walkinLink = `${baseUrl}/register/${event.id}`;
 
       // Log to Master DB with event ID
       await this.dataService.logEventToBackend({
-        eventId: event.id,           // CRITICAL: Include event ID
+        eventId: event.id,           
         eventName: event.name,
         sheetUrl: event.sheetUrl,
         deskLink,
         spocLink,
         walkinLink,
-        createdAt: event.createdAt    // Use the timestamp from the event
+        createdAt: event.createdAt    
       });
 
       console.log('✓ Event created and logged to master sheet');
@@ -262,7 +262,7 @@ export class LandingPageComponent {
     let url = '';
     if (type === 'desk') url = `${baseUrl}/event/${id}/desk`;
     if (type === 'spoc') url = `${baseUrl}/event/${id}/spoc`;
-    if (type === 'walkin') url = `${baseUrl}/event/${id}/walkin`;
+    if (type === 'walkin') url = `${baseUrl}/register/${id}`;
     
     navigator.clipboard.writeText(url).then(() => {
       alert('Link copied to clipboard!');

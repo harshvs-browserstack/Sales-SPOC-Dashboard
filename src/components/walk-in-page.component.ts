@@ -2,17 +2,20 @@ import { Component, inject, input, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DataService } from '../services/data.service';
-import { Router, RouterModule } from '@angular/router';
+import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-walk-in-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule],  // REMOVED RouterModule
   template: `
     <div class="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 flex items-center justify-center p-4">
       <div class="bg-white rounded-lg shadow-xl p-8 max-w-md w-full">
-        <h1 class="text-3xl font-bold text-gray-800 mb-2 text-center">Walk-in Registration</h1>
-        <p class="text-gray-600 mb-6 text-center">{{ eventName() }}</p>
+        <div class="text-center mb-6">
+          <div class="text-4xl mb-3">🚶</div>
+          <h1 class="text-3xl font-bold text-gray-800 mb-2">Walk-in Registration</h1>
+          <p class="text-gray-600">{{ eventName() }}</p>
+        </div>
 
         @if (!submitted()) {
           <form (ngSubmit)="onSubmit()" class="space-y-4">
@@ -80,16 +83,12 @@ import { Router, RouterModule } from '@angular/router';
               (click)="reset()"
               class="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium transition"
             >
-              Register Another
+              Register Another Attendee
             </button>
           </div>
         }
 
-        <div class="mt-6 text-center">
-          <a [routerLink]="['/event', id()]" class="text-purple-600 hover:text-purple-800 text-sm">
-            ← Back to Role Selection
-          </a>
-        </div>
+        <!-- REMOVED: Back to Role Selection link -->
       </div>
     </div>
   `,
@@ -125,8 +124,9 @@ export class WalkInPageComponent implements OnInit {
     
     if (!event) {
       console.error('Event not found');
-      alert('Event not found. Please check the URL.');
-      this.router.navigate(['/']);
+      // Don't redirect - just show error in the current page
+      this.eventName.set('Event Not Found');
+      alert('Event not found. Please contact the event organizer.');
       return;
     }
     

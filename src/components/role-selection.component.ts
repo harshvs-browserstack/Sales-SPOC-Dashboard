@@ -31,12 +31,13 @@ import { DataService } from '../services/data.service';
           
           <!-- Admin Desk Card -->
           <a [routerLink]="['/event', id(), 'desk']"
+             (click)="setAccess()"
              class="group bg-white rounded-2xl p-8 border border-gray-200 hover:border-teal-500 hover:shadow-lg transition-all duration-300 flex flex-col items-center text-center h-full cursor-pointer relative overflow-hidden">
              
              <!-- Icon Circle -->
              <div class="w-24 h-24 rounded-full bg-teal-50 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 group-hover:bg-teal-100">
                <svg class="w-10 h-10 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /> <!-- Check circle / Clipboard check feel -->
+                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                </svg>
              </div>
@@ -49,6 +50,7 @@ import { DataService } from '../services/data.service';
 
           <!-- Sales SPOC Card -->
           <a [routerLink]="['/event', id(), 'spoc']"
+             (click)="setAccess()"
              class="group bg-white rounded-2xl p-8 border border-gray-200 hover:border-blue-500 hover:shadow-lg transition-all duration-300 flex flex-col items-center text-center h-full cursor-pointer relative overflow-hidden">
              
              <!-- Icon Circle -->
@@ -65,7 +67,7 @@ import { DataService } from '../services/data.service';
           </a>
 
           <!-- Walk-in Card -->
-           <a [routerLink]="['/event', id(), 'walkin']"
+          <a [routerLink]="['/register', id()]"
              class="group bg-white rounded-2xl p-8 border border-gray-200 hover:border-purple-500 hover:shadow-lg transition-all duration-300 flex flex-col items-center text-center h-full cursor-pointer relative overflow-hidden">
              
              <!-- Icon Circle -->
@@ -99,6 +101,9 @@ export class RoleSelectionComponent implements OnInit {
   async ngOnInit() {
     const eventId = this.id();
     
+    // Set access key for this event (user came from landing page or has legitimate access)
+    sessionStorage.setItem(`access_${eventId}`, 'authorized');
+    
     // Try to get from localStorage first
     let event = this.dataService.getEventById(eventId);
     
@@ -110,10 +115,15 @@ export class RoleSelectionComponent implements OnInit {
     
     if (!event) {
       console.error('Event not found');
-      // We don't redirect immediately to allow the UI to show "Event Dashboard" (or we could show loading)
-      // but the guard/logic here is fine.
+      // If event doesn't exist, we might want to redirect.
+      // But keeping user here to see "Event Not Found" or similar is also fine.
+    } else {
+      console.log('✓ Event loaded:', event.name);
     }
-    
-    console.log('✓ Event loaded:', event?.name);
+  }
+
+  setAccess() {
+    // Maintain access authorization when navigating to role-specific pages
+    sessionStorage.setItem(`access_${this.id()}`, 'authorized');
   }
 }
