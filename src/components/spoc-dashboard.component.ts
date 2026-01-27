@@ -237,12 +237,9 @@ import { AttendeeDetailComponent } from './attendee-detail.component';
                             </div>
                             
                             <!-- Designation/Title for SPOC -->
-                            @if (mode() === 'spoc' && attendee.title) {
-                              <div class="text-xs text-gray-600 font-medium">{{ attendee.title }}</div>
+                            @if (mode() === 'spoc') {
+                              <div class="text-xs text-gray-600 font-medium">{{ attendee.title ? attendee.company + ' - ' + attendee.title : attendee.company }}</div>
                             }
-
-                            <!-- Company Name (Always show for context, even if grouped) -->
-                            <div class="text-xs text-gray-500 mt-0.5">{{ attendee.company }}</div>
                             
                             @if (attendee.segment === 'Walk-in') {
                               <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-800 mt-1">
@@ -274,7 +271,8 @@ import { AttendeeDetailComponent } from './attendee-detail.component';
                           {{ attendee.lanyardColor }}
                         </div>
                         @if (attendee.printStatus && mode() === 'admin') {
-                          <div class="flex items-center gap-1 text-xs font-semibold text-purple-700 mt-1 bg-purple-50 px-2 py-0.5 rounded-full w-fit">
+                          <div class="flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full w-fit"
+                               [class]="attendee.printStatus === 'Not Printed' ? 'text-red-700 bg-red-50' : 'text-purple-700 bg-purple-50'">
                             <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
                             {{ attendee.printStatus }}
                           </div>
@@ -362,17 +360,16 @@ import { AttendeeDetailComponent } from './attendee-detail.component';
                                 }
                              </h4>
                              
-                             @if (mode() === 'spoc' && attendee.title) {
-                                <p class="text-xs text-gray-600 truncate font-medium">{{ attendee.title }}</p>
+                             @if (mode() === 'spoc') {
+                                <p class="text-xs text-gray-600 truncate font-medium">{{ attendee.title ? attendee.company + ' - ' + attendee.title : attendee.company }}</p>
                              }
-
-                             <p class="text-xs text-gray-500 truncate mt-0.5">{{ attendee.company }}</p>
                              
                              <div class="flex flex-wrap gap-2 mt-1">
                                <span class="text-[10px] text-gray-400 border border-gray-100 rounded px-1">{{ attendee.lanyardColor }}</span>
                                
                                @if (mode() === 'admin' && attendee.printStatus) {
-                                  <span class="text-[10px] font-bold text-purple-700 bg-purple-50 border border-purple-100 rounded px-1 flex items-center gap-1">
+                                  <span class="text-[10px] font-bold rounded px-1 flex items-center gap-1"
+                                        [class]="attendee.printStatus === 'Not Printed' ? 'text-red-700 bg-red-50 border border-red-100' : 'text-purple-700 bg-purple-50 border border-purple-100'">
                                     <svg class="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
                                     {{ attendee.printStatus }}
                                   </span>
