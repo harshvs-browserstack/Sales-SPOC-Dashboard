@@ -3,18 +3,24 @@ import { Router, CanActivateFn, ActivatedRouteSnapshot } from '@angular/router';
 
 export const roleGuard: CanActivateFn = (route: ActivatedRouteSnapshot) => {
   const router = inject(Router);
-  
-  // Check if there's a passkey in sessionStorage
   const eventId = route.paramMap.get('id');
-  const accessKey = sessionStorage.getItem(`access_${eventId}`);
   
-  // If no access key, redirect to Role Selection page (which sets the key)
-  if (!accessKey || accessKey !== 'authorized') {
-    const selectionUrl = `/event/${eventId}`;
-    router.navigate([selectionUrl]);
-    return false;
+  // Check if accessed from role selection (has access key) OR from landing page
+  const accessKey = sessionStorage.getItem(`access_${eventId}`);
+  const fromLanding = sessionStorage.getItem('from_landing');
+  
+  // Allow access if coming from landing or role selection
+  if (accessKey === 'authorized' || fromLanding === 'true') {
+    // Clear the from_landing flag
+    sessionStorage.removeItem('from_landing');
+    // Set access for navigation within the app
+    sessionStorage.setItem(`access_${eventId}`, 'authorized');
+    return true;
   }
   
+  // If no access, allow direct link access anyway (remove this restriction for shared links)
+  // Just set the access key and allow
+  sessionStorage.setItem(`access_${eventId}`, 'authorized');
   return true;
 };
 
@@ -22,8 +28,7 @@ export const walkinGuard: CanActivateFn = (route: ActivatedRouteSnapshot) => {
   const eventId = route.paramMap.get('id');
   
   // Always allow walk-in access
-  // We might want to clear access or just let it be. 
-  // Clearing it ensures if they navigate back they have to re-select role.
+  // Clear any existing access keys to prevent navigation
   sessionStorage.removeItem(`access_${eventId}`);
   
   return true;

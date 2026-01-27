@@ -217,39 +217,7 @@ export class LandingPageComponent {
   }
 
   async saveEvent() {
-    if (!this.newEventName || !this.newSheetUrl) return;
-    
-    this.isSavingEvent.set(true);
-    
-    try {
-      const event = this.dataService.addEvent(this.newEventName, this.newSheetUrl);
-      
-      // Construct Links
-      const baseUrl = window.location.origin + window.location.pathname + '#';
-      const deskLink = `${baseUrl}/event/${event.id}/desk`;
-      const spocLink = `${baseUrl}/event/${event.id}/spoc`;
-      const walkinLink = `${baseUrl}/register/${event.id}`;
-
-      // Log to Master DB with event ID
-      await this.dataService.logEventToBackend({
-        eventId: event.id,           
-        eventName: event.name,
-        sheetUrl: event.sheetUrl,
-        deskLink,
-        spocLink,
-        walkinLink,
-        createdAt: event.createdAt    
-      });
-
-      console.log('✓ Event created and logged to master sheet');
-      this.isCreating.set(false);
-    } catch (error) {
-      console.error('Error creating event:', error);
-      alert('Failed to create event. Please try again.');
-    } finally {
-      this.isSavingEvent.set(false);
-    }
-  }
+  r
 
   deleteEvent(id: string) {
     if(confirm('Are you sure you want to remove this event?')) {
