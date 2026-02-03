@@ -125,12 +125,55 @@ export class DataService {
   }
 
   // NEW: General update method for events (used for archiving and setting dates)
-  updateEvent(id: string, updates: Partial<SavedEvent>) {
+  // updateEvent(id: string, updates: Partial<SavedEvent>) {
+  //   this.savedEvents.update(events => 
+  //     events.map(e => e.id === id ? { ...e, ...updates } : e)
+  //   );
+  //   this.persistEvents();
+  // }
+  // NEW: General update method for events (used for archiving and setting dates)
+  async updateEvent(id: string, updates: Partial<SavedEvent>) {
+    // Update local state immediately
     this.savedEvents.update(events => 
       events.map(e => e.id === id ? { ...e, ...updates } : e)
     );
     this.persistEvents();
+
+    // Sync to backend Master Event Log
+    await this.syncEventUpdateToBackend(id, updates);
   }
+
+  // NEW: Sync event updates to backend
+  private async syncEventUpdateToBackend(eventId: string, updates: Partial<SavedEvent>) {
+    if (!this.HARDCODED_SCRIPT_URL) {
+      console.warn('Backend URL not configured, update is local only');
+      return;
+    }
+
+    try {
+      const payload = {
+        action: 'update_event',
+        eventId: eventId,
+        ...updates
+      };
+
+      const response = await fetch(this.HARDCODED_SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+
+      const result = await this.safeJson(response);
+      
+      if (result.status === 'success') {
+        console.log('✅ Event update synced to backend:', eventId);
+      } else {
+        console.error('❌ Failed to sync event update:', result.error);
+      }
+    } catch (error) {
+      console.error('❌ Failed to sync event update to backend:', error);
+    }
+  }
+
 
   removeEvent(id: string) {
     this.savedEvents.update(prev => prev.filter(e => e.id !== id));
@@ -173,7 +216,7 @@ export class DataService {
              sheetUrl: e.sheetUrl,
              createdAt: e.createdAt ? new Date(e.createdAt).getTime() : Date.now(),
              // Preserve local metadata if it exists
-             archived: local?.archived || false,
+             archived: e.archived !== undefined ? e.archived : (local?.archived || false),
              eventDate: local?.eventDate || ''
            };
         });
