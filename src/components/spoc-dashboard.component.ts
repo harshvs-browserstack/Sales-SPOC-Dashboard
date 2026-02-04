@@ -210,53 +210,6 @@ import {DummyAuthService} from "../services/dummy-auth.service";
           </div>
         }
 
-        <!-- ✅ NEW: Default SPOC Settings (Admin Only) -->
-        @if (mode() === 'admin') {
-          <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-            <div class="flex items-center justify-between mb-4">
-              <h3 class="text-lg font-bold text-gray-800">Default SPOC Settings</h3>
-              @if (!isEditingSpoc()) {
-                <button (click)="isEditingSpoc.set(true)" 
-                        class="text-sm text-teal-600 hover:text-teal-700 font-semibold">
-                  Edit
-                </button>
-              }
-            </div>
-
-            @if (!isEditingSpoc()) {
-              <div class="space-y-2 text-sm">
-                <div class="flex"><span class="font-semibold text-gray-600 w-24">Name:</span><span class="text-gray-800">{{ defaultSpocName() || 'Not set' }}</span></div>
-                <div class="flex"><span class="font-semibold text-gray-600 w-24">Email:</span><span class="text-gray-800">{{ defaultSpocEmail() || 'Not set' }}</span></div>
-                <div class="flex"><span class="font-semibold text-gray-600 w-24">Slack:</span><span class="text-gray-800">{{ defaultSpocSlack() || 'Not set' }}</span></div>
-              </div>
-            } @else {
-              <div class="space-y-3">
-                <input type="text" 
-                      [(ngModel)]="defaultSpocName" 
-                      placeholder="SPOC Name"
-                      class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent" />
-                <input type="email" 
-                      [(ngModel)]="defaultSpocEmail" 
-                      placeholder="SPOC Email"
-                      class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent" />
-                <input type="text" 
-                      [(ngModel)]="defaultSpocSlack" 
-                      placeholder="SPOC Slack"
-                      class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent" />
-                <div class="flex gap-2">
-                  <button (click)="saveDefaultSpoc()" 
-                          class="flex-1 bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-semibold">
-                    Save
-                  </button>
-                  <button (click)="cancelEditSpoc()" 
-                          class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-semibold">
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            }
-          </div>
-        }
 
 
         <!-- DESKTOP TABLE VIEW (Hidden on Mobile) -->
