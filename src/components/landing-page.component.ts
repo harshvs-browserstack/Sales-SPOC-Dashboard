@@ -26,30 +26,33 @@ import { DataService, SavedEvent } from '../services/data.service';
       <div class="max-w-6xl mx-auto px-6 space-y-12">
         
         <div>
-          <div class="flex items-center gap-2 mb-6 text-[#139C84] font-bold text-xl border-b border-gray-200 pb-2">
-             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-             Active Events
-             <span class="text-sm font-normal text-gray-500 ml-2">({{ activeEvents().length }})</span>
-          </div>
+            <div class="flex items-center gap-2 mb-6 text-[#139C84] font-bold text-xl border-b border-gray-200 pb-2">
+               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+               </svg>
+               Active Events
+               <span class="text-sm font-normal text-gray-500 ml-2">({{ activeEvents().length }})</span>
+            </div>
 
-          @if (activeEvents().length === 0) {
-             <div class="text-center py-12 bg-white rounded-xl border border-dashed border-gray-300 text-gray-400">
+            @if (activeEvents().length === 0) {
+               <div class="text-center py-12 bg-white rounded-xl border border-dashed border-gray-300 text-gray-400">
                <p>No active events found.</p>
                <p class="text-sm mt-1">Click the button above to create your first event.</p>
-             </div>
-          }
+               </div>
+            }
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
              @for (event of activeEvents(); track event.id) {
                 <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all relative group">
                    
-                   <button (click)="toggleArchive(event, true); $event.stopPropagation()" 
-                           class="absolute top-4 right-4 text-gray-300 hover:text-orange-500 transition-colors p-1" 
-                           title="Archive Event">
-                      <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-                      </svg>
-                   </button>
+                  <button (click)="setState(event, 'Archived'); $event.stopPropagation()" 
+                        class="absolute top-4 right-4 text-gray-300 hover:text-orange-500 transition-colors p-1" 
+                        title="Archive Event">
+                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                  </svg>
+                  </button>
+
 
                    <div class="pr-8 cursor-pointer" (click)="openEvent(event.id)">
                      <h3 class="text-xl font-bold text-gray-800 mb-1 leading-tight">{{ event.name }}</h3>
@@ -108,45 +111,46 @@ import { DataService, SavedEvent } from '../services/data.service';
           </div>
         </div>
 
-        @if (pastEvents().length > 0) {
-          <div class="border-t border-gray-200 pt-8">
-            <button (click)="isPastExpanded.set(!isPastExpanded())" 
-                    class="flex items-center gap-2 text-gray-500 font-bold text-lg hover:text-gray-700 transition-colors w-full group">
-               <svg class="w-5 h-5 transition-transform duration-200" [class.rotate-90]="!isPastExpanded()" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+        @if (archivedEvents().length > 0) {
+         <div class="border-t border-gray-200 pt-8">
+            <button (click)="isArchivedExpanded.set(!isArchivedExpanded())" 
+                     class="flex items-center gap-2 text-gray-500 font-bold text-lg hover:text-gray-700 transition-colors w-full group">
+               <svg class="w-5 h-5 transition-transform duration-200" [class.rotate-90]="!isArchivedExpanded()" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                </svg>
-               Past Events ({{ pastEvents().length }})
+               Archived Events ({{ archivedEvents().length }})
             </button>
 
-            @if (isPastExpanded()) {
-              <div class="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-fade-in">
-                 @for (event of pastEvents(); track event.id) {
-                    <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 flex flex-col gap-3 opacity-80 hover:opacity-100 transition-all hover:bg-white hover:shadow-sm group">
-                       <div class="flex justify-between items-start">
-                          <div>
-                             <h4 class="font-bold text-gray-700">{{ event.name }}</h4>
-                             <p class="text-xs text-gray-500">{{ event.eventDate ? (event.eventDate | date:'mediumDate') : (event.createdAt | date:'mediumDate') }}</p>
-                          </div>
-                          
-                          <button (click)="toggleArchive(event, false); $event.stopPropagation()" 
-                                  class="text-gray-300 hover:text-teal-600 transition-colors p-1" 
-                                  title="Move to Active">
-                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-                             </svg>
-                          </button>
-                       </div>
-                       
-                       <div class="flex gap-2 mt-auto pt-2 border-t border-gray-200/50">
-                          <button (click)="openEvent(event.id)" class="flex-1 text-xs bg-white border border-gray-300 py-1.5 rounded text-gray-600 hover:bg-gray-50 font-medium">View</button>
-                          <button (click)="deleteEvent(event.id)" class="text-xs text-red-500 hover:text-red-700 hover:bg-red-50 px-3 py-1.5 rounded transition-colors">Delete</button>
-                       </div>
-                    </div>
-                 }
-              </div>
+            @if (isArchivedExpanded()) {
+               <div class="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  @for (event of archivedEvents(); track event.id) {
+                     <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 flex flex-col gap-3">
+                        <div class="flex justify-between items-start">
+                           <div>
+                              <h4 class="font-bold text-gray-700">{{ event.name }}</h4>
+                              <p class="text-xs text-gray-500">{{ event.eventDate ? (event.eventDate | date:'mediumDate') : (event.createdAt | date:'mediumDate') }}</p>
+                           </div>
+                           
+                           <button (click)="setState(event, 'Active'); $event.stopPropagation()" 
+                                 class="text-gray-300 hover:text-teal-600 transition-colors p-1" 
+                                 title="Restore to Active">
+                              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                              </svg>
+                           </button>
+                        </div>
+                        
+                        <div class="flex gap-2 mt-auto pt-2 border-t border-gray-200/50">
+                           <button (click)="openEvent(event.id)" class="flex-1 text-xs bg-white border border-gray-300 py-1.5 rounded text-gray-600 hover:bg-gray-50 font-medium">View</button>
+                           <button (click)="setState(event, 'Deleted')" class="text-xs text-red-500 hover:text-red-700 hover:bg-red-50 px-3 py-1.5 rounded transition-colors">Delete</button>
+                        </div>
+                     </div>
+                  }
+               </div>
             }
-          </div>
-        }
+         </div>
+         }
+
 
       </div>
 
@@ -230,6 +234,7 @@ export class LandingPageComponent implements OnInit {
 
   isModalOpen = signal(false);
   isPastExpanded = signal(false);
+  isArchivedExpanded = signal(false);
   
   // Form Signals
   newSheetUrl = signal('');
@@ -244,26 +249,33 @@ export class LandingPageComponent implements OnInit {
 
   // Sorting: Active Events (Not archived, Newest First)
   activeEvents = computed(() => 
-    this.dataService.savedEvents()
-      .filter(e => !e.archived)
+   this.dataService.savedEvents()
+      .filter(e => e.state === 'Active')
       .sort((a, b) => b.createdAt - a.createdAt)
-  );
+   );
 
-  // Sorting: Past Events (Archived, Newest First)
-  pastEvents = computed(() => 
-    this.dataService.savedEvents()
-      .filter(e => e.archived)
+   archivedEvents = computed(() => 
+   this.dataService.savedEvents()
+      .filter(e => e.state === 'Archived')
       .sort((a, b) => b.createdAt - a.createdAt)
-  );
+   );
+
+   // ✅ ADD deletedEvents computed
+   deletedEvents = computed(() => 
+   this.dataService.savedEvents()
+      .filter(e => e.state === 'Deleted')
+      .sort((a, b) => b.createdAt - a.createdAt)
+   );
 
   ngOnInit() {
      // Fetch all active events from master log on load
      this.dataService.fetchAllEventsFromMasterLog();
   }
 
-  toggleArchive(event: SavedEvent, status: boolean) {
-    this.dataService.updateEvent(event.id, { archived: status });
-  }
+   setState(event: SavedEvent, newState: 'Active' | 'Archived' | 'Deleted') {
+   this.dataService.updateEvent(event.id, { state: newState });
+   }
+
 
   openModal() {
     this.newSheetUrl.set('');

@@ -1,7 +1,8 @@
-import { Component, input, output, signal } from '@angular/core';
+import { Component, inject, input, output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Attendee } from '../services/data.service';
+import { DummyAuthService } from '../services/dummy-auth.service';
 
 @Component({
   selector: 'app-attendee-detail',
@@ -189,6 +190,7 @@ import { Attendee } from '../services/data.service';
 
               <!-- Intel & Notes (HIDDEN FOR ADMIN) -->
               @if (!isAdmin()) {
+                <!-- Talking Points / Intel -->
                 <div class="border-t border-gray-100 pt-4">
                   <h4 class="text-xs font-semibold text-gray-500 uppercase mb-2">Talking Points / Intel</h4>
                   <div class="bg-yellow-50 text-yellow-800 text-sm p-3 rounded-md border border-yellow-100">
@@ -200,7 +202,77 @@ import { Attendee } from '../services/data.service';
                   </div>
                 </div>
 
+                <!-- Notes Section (ONLY if logged in) -->
+                @if (dummyAuth.isLoggedIn()()) {
+                  <div class="border-t border-gray-100 pt-4">
+                    <div class="flex items-center justify-between mb-3">
+                      <h4 class="text-xs font-semibold text-gray-500 uppercase">Notes</h4>
+                      @if (!isAddingNote() && !isEditingNote()) {
+                        <button 
+                          (click)="onAddNoteClick()"
+                          class="flex items-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border border-blue-200">
+                          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                          </svg>
+                          Add Note
+                        </button>
+                      }
+                    </div>
+
+                    <!-- Add Note Form -->
+                    @if (isAddingNote()) {
+                      <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-3">
+                        <textarea 
+                          [ngModel]="newNoteText()"
+                          (ngModelChange)="newNoteText.set($event)"
+                          placeholder="Enter your note here..."
+                          rows="3"
+                          class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm resize-none"
+                          [disabled]="isEditingNote()"></textarea>
+                        <div class="flex gap-2 mt-3">
+                          <button 
+                            (click)="saveNewNote()"
+                            [disabled]="!newNoteText().trim() || isEditingNote()"
+                            class="flex-1 bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm flex items-center justify-center gap-2">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                            Submit
+                          </button>
+                          <button 
+                            (click)="cancelAddNote()"
+                            [disabled]="isEditingNote()"
+                            class="flex-1 bg-white text-gray-700 border border-gray-300 font-semibold py-2 px-4 rounded-lg hover:bg-gray-50 disabled:opacity-50 text-sm">
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    }
+
+                    <!-- Notes List -->
+                    <div class="space-y-3">
+                      @for (note of parseNotes(); track $index) {
+                        <div class="bg-blue-50 border border-blue-100 rounded-lg p-3">
+                          <div class="flex items-start gap-2 mb-1.5">
+                            <div class="flex-shrink-0 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                              {{ note.author.charAt(0).toUpperCase() }}
+                            </div>
+                            <div class="flex-1 min-w-0">
+                              <div class="text-xs font-semibold text-blue-900">{{ note.author }}</div>
+                              <p class="text-sm text-blue-800 mt-1 whitespace-pre-line break-words">{{ note.text }}</p>
+                            </div>
+                          </div>
+                        </div>
+                      } @empty {
+                        <div class="text-center py-6 text-gray-400 italic text-sm">
+                          No notes yet. Click "+ Add Note" to get started.
+                        </div>
+                      }
+                    </div>
+                  </div>
+                }
               }
+
             </div>
 
             <!-- Modal Actions (HIDDEN FOR ADMIN) -->
@@ -242,8 +314,13 @@ export class AttendeeDetailComponent {
   updateAttendance = output<void>();
   updateNote = output<string>();
 
+  dummyAuth = inject(DummyAuthService);
+
   isEditingNote = signal(false);
   noteText = signal('');
+  //Notes Management
+  isAddingNote = signal(false);
+  newNoteText = signal('');
 
   getLanyardHex(color: string | undefined): string {
     const c = color?.toLowerCase() || '';
@@ -257,10 +334,66 @@ export class AttendeeDetailComponent {
     return '#9ca3af';
   }
 
-  onAddNoteClick() {
-    this.noteText.set(this.attendee().notes || '');
-    this.isEditingNote.set(true);
+  // Parse notes string into structured array
+  parseNotes(): Array<{ author: string; text: string; timestamp?: string }> {
+    const notesStr = this.attendee().notes || '';
+    if (!notesStr.trim()) return [];
+
+    const entries = notesStr.split('\n---\n').filter(e => e.trim());
+    
+    return entries.map(entry => {
+      const colonIndex = entry.indexOf(':');
+      if (colonIndex === -1) {
+        return { author: 'Unknown', text: entry.trim() };
+      }
+      
+      const author = entry.substring(0, colonIndex).trim();
+      const text = entry.substring(colonIndex + 1).trim();
+      
+      return { author, text };
+    });
   }
+
+  onAddNoteClick() {
+    this.newNoteText.set('');
+    this.isAddingNote.set(true);
+  }
+
+  cancelAddNote() {
+    this.isAddingNote.set(false);
+    this.newNoteText.set('');
+  }
+
+  saveNewNote() {
+    const noteText = this.newNoteText().trim();
+    if (!noteText) return;
+
+    const user = this.dummyAuth.getUser()();
+    if (!user) {
+      alert('You must be logged in to add notes');
+      return;
+    }
+
+    // Build author prefix
+    const authorPrefix = `${user.name} (${user.email})`;
+    const newEntry = `${authorPrefix}: ${noteText}`;
+
+    // Prepend to existing notes with \n---\n delimiter
+    const existingNotes = this.attendee().notes || '';
+    const updatedNotes = existingNotes.trim() 
+      ? `${newEntry}\n---\n${existingNotes}` 
+      : newEntry;
+
+    this.updateNote.emit(updatedNotes);
+    this.isAddingNote.set(false);
+    this.newNoteText.set('');
+  }
+
+
+  // onAddNoteClick() {
+  //   this.noteText.set(this.attendee().notes || '');
+  //   this.isEditingNote.set(true);
+  // }
 
   saveNote() {
     this.updateNote.emit(this.noteText());

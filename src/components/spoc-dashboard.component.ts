@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { DataService, Attendee } from '../services/data.service';
 import { AttendeeDetailComponent } from './attendee-detail.component';
+import {DummyAuthService} from "../services/dummy-auth.service";
 
 @Component({
   selector: 'app-spoc-dashboard',
@@ -31,23 +32,57 @@ import { AttendeeDetailComponent } from './attendee-detail.component';
           </div>
           
           <div class="flex items-center gap-3">
-             <button 
-               (click)="syncData()"
-               [disabled]="isSyncing()"
-               class="bg-white/10 text-white hover:bg-white/20 p-2 rounded-full shadow-sm transition-colors disabled:opacity-50"
-               title="Refresh Data">
-               @if (isSyncing()) {
-                 <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                   <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                 </svg>
-               } @else {
-                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                 </svg>
-               }
-             </button>
+            <!-- Dummy Auth Control (SPOC Only) -->
+            @if (mode() === 'spoc') {
+              @if (!dummyAuth.isLoggedIn()()) {
+                <button 
+                  (click)="dummyAuth.signIn()"
+                  class="bg-white/20 text-white hover:bg-white/30 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 border border-white/30"
+                  title="Sign in with BrowserStack Account">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                  </svg>
+                  Sign In
+                </button>
+              } @else {
+                <div class="flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-lg border border-white/20">
+                  <div class="flex items-center gap-2">
+                    <div class="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center text-white font-bold text-xs">
+                      {{ dummyAuth.getUser()()?.name.charAt(0) || 'H' }}
+                    </div>
+                    <span class="text-sm text-white font-medium">{{ dummyAuth.getUser()()?.name || 'User' }}</span>
+                  </div>
+                  <button 
+                    (click)="dummyAuth.signOut()"
+                    class="text-white/80 hover:text-white p-1 transition-colors"
+                    title="Sign out">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                  </button>
+                </div>
+              }
+            }
+
+            <!-- Sync Button -->
+            <button 
+              (click)="syncData()"
+              [disabled]="isSyncing()"
+              class="bg-white/10 text-white hover:bg-white/20 p-2 rounded-full shadow-sm transition-colors disabled:opacity-50"
+              title="Refresh Data">
+              @if (isSyncing()) {
+                <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              } @else {
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              }
+            </button>
           </div>
+
         </div>
       </header>
 
@@ -174,6 +209,55 @@ import { AttendeeDetailComponent } from './attendee-detail.component';
             </div>
           </div>
         }
+
+        <!-- ✅ NEW: Default SPOC Settings (Admin Only) -->
+        @if (mode() === 'admin') {
+          <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-bold text-gray-800">Default SPOC Settings</h3>
+              @if (!isEditingSpoc()) {
+                <button (click)="isEditingSpoc.set(true)" 
+                        class="text-sm text-teal-600 hover:text-teal-700 font-semibold">
+                  Edit
+                </button>
+              }
+            </div>
+
+            @if (!isEditingSpoc()) {
+              <div class="space-y-2 text-sm">
+                <div class="flex"><span class="font-semibold text-gray-600 w-24">Name:</span><span class="text-gray-800">{{ defaultSpocName() || 'Not set' }}</span></div>
+                <div class="flex"><span class="font-semibold text-gray-600 w-24">Email:</span><span class="text-gray-800">{{ defaultSpocEmail() || 'Not set' }}</span></div>
+                <div class="flex"><span class="font-semibold text-gray-600 w-24">Slack:</span><span class="text-gray-800">{{ defaultSpocSlack() || 'Not set' }}</span></div>
+              </div>
+            } @else {
+              <div class="space-y-3">
+                <input type="text" 
+                      [(ngModel)]="defaultSpocName" 
+                      placeholder="SPOC Name"
+                      class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent" />
+                <input type="email" 
+                      [(ngModel)]="defaultSpocEmail" 
+                      placeholder="SPOC Email"
+                      class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent" />
+                <input type="text" 
+                      [(ngModel)]="defaultSpocSlack" 
+                      placeholder="SPOC Slack"
+                      class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent" />
+                <div class="flex gap-2">
+                  <button (click)="saveDefaultSpoc()" 
+                          class="flex-1 bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-semibold">
+                    Save
+                  </button>
+                  <button (click)="cancelEditSpoc()" 
+                          class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-semibold">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+        }
+
 
         <!-- DESKTOP TABLE VIEW (Hidden on Mobile) -->
         <div class="hidden md:block bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -478,6 +562,7 @@ import { AttendeeDetailComponent } from './attendee-detail.component';
 })
 export class SpocDashboardComponent implements OnInit, OnDestroy {
   dataService = inject(DataService);
+  dummyAuth = inject(DummyAuthService);
   router = inject(Router);
 
   // Inputs mapped from Route Data/Params
@@ -497,6 +582,11 @@ export class SpocDashboardComponent implements OnInit, OnDestroy {
   isWalkInOpen = signal(false);
   isAddingWalkIn = signal(false);
   walkInForm = { fullName: '', email: '', company: '', contact: '' };
+
+  defaultSpocName = signal('');
+  defaultSpocEmail = signal('');
+  defaultSpocSlack = signal('');
+  isEditingSpoc = signal(false);
 
   allAttendees = this.dataService.getAttendees();
   
@@ -531,6 +621,13 @@ export class SpocDashboardComponent implements OnInit, OnDestroy {
 
   async ngOnInit() {
     await this.initializeDashboard();
+
+    const event = this.dataService.getEventById(this.eventId());
+    if (event) {
+      this.defaultSpocName.set(event.defaultSpocName || '');
+      this.defaultSpocEmail.set(event.defaultSpocEmail || '');
+      this.defaultSpocSlack.set(event.defaultSpocSlack || '');
+    }
 
     // Auto-sync every 1 minutes (300,000 ms)
     this.syncInterval = setInterval(() => {
@@ -729,11 +826,41 @@ export class SpocDashboardComponent implements OnInit, OnDestroy {
     // Use the event's sheet URL
     const event = this.dataService.getEventById(this.eventId());
     if (event) {
-        await this.dataService.addWalkInAttendee(this.walkInForm, event.sheetUrl);
+        await this.dataService.addWalkInAttendee(
+          this.walkInForm, 
+          event.sheetUrl,
+          {
+            name:this.defaultSpocName(),
+            email:this.defaultSpocEmail(),
+            slack:this.defaultSpocSlack()
+          }
+        );
     }
     this.isAddingWalkIn.set(false);
     this.closeWalkIn();
   }
+
+  async saveDefaultSpoc() {
+    const eventId = this.eventId();
+    await this.dataService.updateEvent(eventId, {
+      defaultSpocName: this.defaultSpocName(),
+      defaultSpocEmail: this.defaultSpocEmail(),
+      defaultSpocSlack: this.defaultSpocSlack()
+    });
+    this.isEditingSpoc.set(false);
+    alert('Default SPOC updated successfully');
+  }
+
+  cancelEditSpoc() {
+    const event = this.dataService.getEventById(this.eventId());
+    if (event) {
+      this.defaultSpocName.set(event.defaultSpocName || '');
+      this.defaultSpocEmail.set(event.defaultSpocEmail || '');
+      this.defaultSpocSlack.set(event.defaultSpocSlack || '');
+    }
+    this.isEditingSpoc.set(false);
+  }
+
 
   getLanyardHex(color: string): string {
     const c = color?.toLowerCase() || '';

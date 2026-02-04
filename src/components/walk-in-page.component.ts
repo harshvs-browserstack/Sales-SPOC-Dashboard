@@ -132,6 +132,7 @@ export class WalkInPageComponent implements OnInit {
     
     this.currentEvent = event;
     this.eventName.set(event.name);
+    this.dataService.sheetName.set(event.name);
     console.log('✓ Event loaded for walk-in:', event.name);
   }
 
@@ -154,9 +155,13 @@ export class WalkInPageComponent implements OnInit {
         company: this.company(),
         contact: this.contact()
       },
-      this.currentEvent.sheetUrl
+      this.currentEvent.sheetUrl,
+      {        
+        name: this.currentEvent.defaultSpocName,
+        email: this.currentEvent.defaultSpocEmail,
+        slack: this.currentEvent.defaultSpocSlack
+      }
     );
-
     this.submitting.set(false);
 
     if (success) {

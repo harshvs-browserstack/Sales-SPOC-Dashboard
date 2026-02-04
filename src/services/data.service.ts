@@ -27,9 +27,11 @@ export interface SavedEvent {
   name: string;
   sheetUrl: string;
   createdAt: number;
-  // NEW FIELDS for lifecycle management
-  archived?: boolean;
   eventDate?: string;
+  state: 'Active' | 'Archived' | 'Deleted';
+  defaultSpocName?: string;
+  defaultSpocEmail?: string;
+  defaultSpocSlack?: string;
 }
 
 @Injectable({
@@ -116,13 +118,17 @@ export class DataService {
       name,
       sheetUrl,
       createdAt: Date.now(),
-      archived: false, // Default
-      eventDate: ''    // Default
+      state: 'Active',           
+      eventDate: '',
+      defaultSpocName: '',       
+      defaultSpocEmail: '',      
+      defaultSpocSlack: ''       
     };
     this.savedEvents.update(prev => [newEvent, ...prev]);
     this.persistEvents();
     return newEvent;
   }
+
 
   // NEW: General update method for events (used for archiving and setting dates)
   // updateEvent(id: string, updates: Partial<SavedEvent>) {
@@ -205,30 +211,33 @@ export class DataService {
       const data = await this.safeJson(response);
       
       if (data.status === 'success' && Array.isArray(data.events)) {
-        // Merge with local state to preserve 'archived' and 'eventDate' if they exist locally
         const localMap = new Map(this.savedEvents().map(e => [e.id, e]));
 
         const events: SavedEvent[] = data.events.map((e: any) => {
-           const local = localMap.get(e.eventId);
-           return {
-             id: e.eventId,
-             name: e.eventName,
-             sheetUrl: e.sheetUrl,
-             createdAt: e.createdAt ? new Date(e.createdAt).getTime() : Date.now(),
-             // Preserve local metadata if it exists
-             archived: e.archived !== undefined ? e.archived : (local?.archived || false),
-             eventDate: local?.eventDate || ''
-           };
+          const local = localMap.get(e.eventId);
+          return {
+            id: e.eventId,
+            name: e.eventName,
+            sheetUrl: e.sheetUrl,
+            createdAt: e.createdAt ? new Date(e.createdAt).getTime() : Date.now(),
+            // ✅ Use backend state field
+            state: e.state || 'Active',
+            eventDate: e.eventDate || '',
+            // ✅ NEW: Default SPOC fields
+            defaultSpocName: e.defaultSpocName || '',
+            defaultSpocEmail: e.defaultSpocEmail || '',
+            defaultSpocSlack: e.defaultSpocSlack || ''
+          };
         });
 
-        // Update the signal with the master list (Single Source of Truth)
         this.savedEvents.set(events);
         this.persistEvents();
       }
     } catch (e) {
-       console.error('Failed to sync master events:', e);
+      console.error('Failed to sync master events:', e);
     }
   }
+
 
   async getEventFromMasterLog(eventId: string): Promise<SavedEvent | null> {
     if (!this.HARDCODED_SCRIPT_URL) return null;
@@ -238,7 +247,6 @@ export class DataService {
       const data = await this.safeJson(response);
       
       if (data.status === 'success' && data.event) {
-        // Check local first for metadata
         const local = this.savedEvents().find(e => e.id === data.event.id);
 
         const event: SavedEvent = {
@@ -248,16 +256,18 @@ export class DataService {
           createdAt: typeof data.event.createdAt === 'string' 
             ? new Date(data.event.createdAt).getTime() 
             : data.event.createdAt,
-          // Preserve local metadata if it exists
-          archived: local?.archived || false,
-          eventDate: local?.eventDate || ''
+          // ✅ Use backend state
+          state: data.event.state || 'Active',
+          eventDate: data.event.eventDate || '',
+          // ✅ NEW: Default SPOC fields
+          defaultSpocName: data.event.defaultSpocName || '',
+          defaultSpocEmail: data.event.defaultSpocEmail || '',
+          defaultSpocSlack: data.event.defaultSpocSlack || ''
         };
         
-        // Store in localStorage for future use
         if (!local) {
           this.savedEvents.update(prev => [event, ...prev]);
         } else {
-          // Update existing with potential new data from server, keeping local flags
           this.savedEvents.update(prev => prev.map(e => e.id === event.id ? event : e));
         }
         this.persistEvents();
@@ -271,6 +281,7 @@ export class DataService {
       return null;
     }
   }
+
 
   // --- NEW: Helper to load event data ---
   async loadEventData(sheetUrl: string, sheetName: string): Promise<boolean> {
@@ -362,7 +373,8 @@ export class DataService {
 
   async addWalkInAttendee(
     data: { fullName: string; email: string; company: string; contact?: string }, 
-    sheetUrlOverride?: string
+    sheetUrlOverride?: string,
+    defaultSpocValues?: { name?: string; email?: string; slack?: string }  // ✅ NEW parameter
   ): Promise<boolean> {
     const sheet = sheetUrlOverride || this.currentSheetUrl();
     const sheetName = this.sheetName();
@@ -388,8 +400,9 @@ export class DataService {
       attendance: true,
       checkInTime: new Date(),
       segment: 'Walk-in',
-      spocName: 'Walk-in',
-      spocEmail: '',
+      spocName: defaultSpocValues?.name || 'Walk-in',  // ✅ Use default SPOC
+      spocEmail: defaultSpocValues?.email || '',        // ✅ Use default SPOC
+      spocSlack: defaultSpocValues?.slack || '',        // ✅ Use default SPOC
       lanyardColor: 'Yellow',
       printStatus: '',
       leadIntel: '',
@@ -412,7 +425,11 @@ export class DataService {
         ...data,
         firstName,
         lastName,
-        lanyardColor: 'Yellow'
+        lanyardColor: 'Yellow',
+        // ✅ Pass default SPOC values to backend
+        defaultSpocName: defaultSpocValues?.name || '',
+        defaultSpocEmail: defaultSpocValues?.email || '',
+        defaultSpocSlack: defaultSpocValues?.slack || ''
       };
 
       const response = await fetch(`${this.HARDCODED_SCRIPT_URL}?${params.toString()}`, {
@@ -427,10 +444,6 @@ export class DataService {
           this.rawAttendees.update(attendees =>
             attendees.map(a => a.id === newId ? { ...a, ...res.updatedFields } : a)
           );
-        } else if (res.status === 'success' && res.spoc) {
-          this.rawAttendees.update(attendees =>
-            attendees.map(a => a.id === newId ? { ...a, spocName: res.spoc } : a)
-          );
         }
       }
 
@@ -440,6 +453,7 @@ export class DataService {
       return false;
     }
   }
+
 
   // --- NETWORKING ---
   
