@@ -606,9 +606,6 @@ export class SpocDashboardComponent implements OnInit, OnDestroy {
 
     console.log('✓ Event loaded:', event.name);
 
-    // FIX: Clear previous event data to prevent flickering of old data
-    this.dataService.clearAttendees();
-
     // Load event data
     this.isSyncing.set(true);
     await this.dataService.loadFromBackend(event.sheetUrl, event.name);
