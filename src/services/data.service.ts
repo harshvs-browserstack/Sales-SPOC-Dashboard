@@ -1,4 +1,5 @@
 import { Injectable, signal } from '@angular/core';
+export type AttendeeType = 'Attendee' | 'Speaker' | 'Round Table';
 
 export interface Attendee {
   id: string;
@@ -20,6 +21,7 @@ export interface Attendee {
   notes?: string;
   title?: string;
   linkedin?: string;
+  attendeeType: AttendeeType;
 }
 
 export interface SavedEvent {
@@ -406,7 +408,8 @@ export class DataService {
       lanyardColor: 'Yellow',
       printStatus: '',
       leadIntel: '',
-      notes: ''
+      notes: '',
+      attendeeType: 'Attendee' // Default for walk-ins
     };
 
     if (this.currentSheetUrl() === sheet) {
@@ -430,7 +433,8 @@ export class DataService {
         // ✅ Pass default SPOC values to backend
         defaultSpocName: defaultSpocValues?.name || '',
         defaultSpocEmail: defaultSpocValues?.email || '',
-        defaultSpocSlack: defaultSpocValues?.slack || ''
+        defaultSpocSlack: defaultSpocValues?.slack || '',
+        attendeeType: 'Attendee'
       };
 
       const response = await fetch(`${this.HARDCODED_SCRIPT_URL}?${params.toString()}`, {
@@ -612,6 +616,17 @@ export class DataService {
       const titleVal = this.cleanString(get('title', 'Title', 'Designation', 'Job Title', 'Role', 'position'));
       const linkedinVal = this.cleanString(get('linkedin', 'LinkedIn', 'Linkedin Profile', 'LinkedIn URL', 'Profile Link', 'linked_in', 'linkedin_url'));
 
+      // NEW: Parse Attendee Type
+      let attendeeTypeRaw = this.cleanString(get('attendeeType', 'Attendee Type', 'Type', 'Category'));
+      let attendeeType: AttendeeType = 'Attendee';
+
+      if (attendeeTypeRaw) {
+        if (attendeeTypeRaw.toLowerCase().includes('speaker')) {
+          attendeeType = 'Speaker';
+        } else if (attendeeTypeRaw.toLowerCase().includes('round')) {
+          attendeeType = 'Round Table';
+        }
+      }
 
       return {
         id: crypto.randomUUID(),
@@ -632,7 +647,8 @@ export class DataService {
         leadIntel: this.cleanString(get('leadIntel', 'Account Intel', 'Lead Intel', 'talking points', 'Intel')),
         notes: this.cleanString(get('notes', 'Note', 'Notes', 'Comment', 'Comments', 'Feedback')),
         title: titleVal,
-        linkedin: linkedinVal
+        linkedin: linkedinVal,
+        attendeeType: attendeeType
       };
     });
 

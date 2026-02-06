@@ -226,6 +226,7 @@ import { DummyAuthService } from "../services/dummy-auth.service";
                   }
 
                   <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lanyard</th>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                   <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check-in Time</th>
                   
                   <!-- Admin Mode: Status Column is last (to the right) -->
@@ -304,7 +305,6 @@ import { DummyAuthService } from "../services/dummy-auth.service";
                         </td>
                       }
 
-                      <!-- Lanyard -->
                       <td class="px-6 py-4 whitespace-nowrap">
                         <div class="flex items-center text-sm text-gray-900 font-medium">
                           <span class="w-3 h-3 rounded-full mr-2 ring-1 ring-inset ring-black/10" 
@@ -318,6 +318,11 @@ import { DummyAuthService } from "../services/dummy-auth.service";
                             {{ attendee.printStatus }}
                           </div>
                         }
+                      </td>
+
+                      <!-- Attendee Type -->
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {{ attendee.attendeeType }}
                       </td>
 
                       <!-- Check-in Time -->
@@ -387,6 +392,15 @@ import { DummyAuthService } from "../services/dummy-auth.service";
                                <a [href]="attendee.linkedin" target="_blank" (click)="$event.stopPropagation()" class="text-[#0077b5]">
                                  <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
                                </a>
+                             }
+                             @if (attendee.attendeeType === 'Speaker') {
+                               <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200">
+                                 Speaker
+                               </span>
+                             } @else if (attendee.attendeeType === 'Round Table') {
+                               <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">
+                                 Round Table
+                               </span>
                              }
                           </h4>
                           
