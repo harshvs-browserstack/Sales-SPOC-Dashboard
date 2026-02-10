@@ -523,7 +523,7 @@ export class DataService {
       return false;
     } catch (err) {
       console.error('Fetch error:', err);
-      alert('Failed to connect to backend. Check console.');
+      alert('Please check the internet connection and try again. Failed to connect to backend.');
       return false;
     }
   }
