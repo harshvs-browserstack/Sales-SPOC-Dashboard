@@ -3,8 +3,6 @@ export type AttendeeType = 'Attendee' | 'Speaker' | 'Round Table';
 
 export interface Attendee {
   id: string;
-  _stableId?: string;      // Stable ID from backend (sheet_row based)
-  _lastModified?: number;  // Timestamp for optimistic locking
   email: string;
   fullName: string;
   firstName: string;
@@ -46,11 +44,6 @@ export class DataService {
   public sheetName = signal('');
   public availableSheets = signal<string[]>([]);
   public savedEvents = signal<SavedEvent[]>([]);
-
-  // Sync status signals for UI feedback
-  public isSyncing = signal(false);
-  public syncError = signal<string | null>(null);
-  public lastSyncTime = signal<Date | null>(null);
 
   private readonly HARDCODED_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxCsdkPGi3-rxDTWAJIHfK6O70GaPSmJmlqLYTlX8jxFE7MqOS7koul0uSKTynDXKOa/exec';
   private currentSheetUrl = signal('');
@@ -336,33 +329,19 @@ export class DataService {
     const attendee = this.rawAttendees().find(a => a.id === id);
     if (!attendee) return;
 
-    const oldColor = attendee.lanyardColor;
-
     this.rawAttendees.update(attendees =>
       attendees.map(a => a.id === id ? { ...a, lanyardColor: newColor } : a)
     );
 
-    this.syncChangeToBackend(
-      {
-        email: attendee.email,
-        lanyardColor: newColor,
-        _lastModified: attendee._lastModified
-      },
-      // Revert function if sync fails
-      () => {
-        this.rawAttendees.update(attendees =>
-          attendees.map(a => a.id === id ? { ...a, lanyardColor: oldColor } : a)
-        );
-      }
-    );
+    this.syncChangeToBackend({
+      email: attendee.email,
+      lanyardColor: newColor
+    });
   }
 
   toggleAttendance(id: string) {
     const attendee = this.rawAttendees().find(a => a.id === id);
     if (!attendee) return;
-
-    const oldStatus = attendee.attendance;
-    const oldTime = attendee.checkInTime;
     const newStatus = !attendee.attendance;
     const newTime = newStatus ? new Date() : null;
 
@@ -374,48 +353,24 @@ export class DataService {
       } : a)
     );
 
-    this.syncChangeToBackend(
-      {
-        email: attendee.email,
-        attendance: newStatus,
-        _lastModified: attendee._lastModified
-      },
-      // Revert function if sync fails
-      () => {
-        this.rawAttendees.update(attendees =>
-          attendees.map(a => a.id === id ? {
-            ...a,
-            attendance: oldStatus,
-            checkInTime: oldTime
-          } : a)
-        );
-      }
-    );
+    this.syncChangeToBackend({
+      email: attendee.email,
+      attendance: newStatus
+    });
   }
 
   updateNote(id: string, note: string) {
     const attendee = this.rawAttendees().find(a => a.id === id);
     if (!attendee) return;
 
-    const oldNote = attendee.notes;
-
     this.rawAttendees.update(attendees =>
       attendees.map(a => a.id === id ? { ...a, notes: note } : a)
     );
 
-    this.syncChangeToBackend(
-      {
-        email: attendee.email,
-        notes: note,
-        _lastModified: attendee._lastModified
-      },
-      // Revert function if sync fails
-      () => {
-        this.rawAttendees.update(attendees =>
-          attendees.map(a => a.id === id ? { ...a, notes: oldNote } : a)
-        );
-      }
-    );
+    this.syncChangeToBackend({
+      email: attendee.email,
+      notes: note
+    });
   }
 
   async addWalkInAttendee(
@@ -492,14 +447,7 @@ export class DataService {
       if (this.currentSheetUrl() === sheet) {
         if (res.status === 'success' && res.updatedFields) {
           this.rawAttendees.update(attendees =>
-            attendees.map(a => a.id === newId ? {
-              ...a,
-              ...res.updatedFields,
-              // Update ID if stable ID is returned
-              id: res.updatedFields._stableId || a.id,
-              _stableId: res.updatedFields._stableId,
-              _lastModified: res.updatedFields._lastModified
-            } : a)
+            attendees.map(a => a.id === newId ? { ...a, ...res.updatedFields } : a)
           );
         }
       }
@@ -514,20 +462,14 @@ export class DataService {
 
   // --- NETWORKING ---
 
-  private async syncChangeToBackend(
-    payload: any,
-    revertFn?: () => void
-  ): Promise<{ success: boolean; serverLastModified?: number }> {
+  private async syncChangeToBackend(payload: any) {
     const sheet = this.currentSheetUrl();
     const sheetName = this.sheetName();
 
     if (!this.HARDCODED_SCRIPT_URL || !sheet) {
       console.warn('Backend not configured properly. Change is local only.');
-      return { success: false };
+      return;
     }
-
-    this.isSyncing.set(true);
-    this.syncError.set(null);
 
     try {
       const params = new URLSearchParams({
@@ -536,66 +478,14 @@ export class DataService {
       });
       if (sheetName) params.append('sheetName', sheetName);
 
-      const response = await fetch(`${this.HARDCODED_SCRIPT_URL}?${params.toString()}`, {
+      await fetch(`${this.HARDCODED_SCRIPT_URL}?${params.toString()}`, {
         method: 'POST',
         body: JSON.stringify(payload)
       });
-
-      const result = await this.safeJson(response);
-
-      if (result.status === 'success') {
-        console.log('✅ Synced to sheet successfully');
-        this.lastSyncTime.set(new Date());
-
-        // Update lastModified on the attendee if server returned it
-        if (result.serverLastModified && payload.email) {
-          this.rawAttendees.update(attendees =>
-            attendees.map(a => a.email === payload.email
-              ? { ...a, _lastModified: result.serverLastModified }
-              : a
-            )
-          );
-        }
-
-        return { success: true, serverLastModified: result.serverLastModified };
-      } else if (result.status === 'conflict') {
-        // Conflict detected - another user modified the data
-        console.warn('⚠️ Sync conflict:', result.error);
-        this.syncError.set('Data was modified by another user. Refreshing...');
-
-        // Revert optimistic update
-        if (revertFn) revertFn();
-
-        // Trigger a data refresh
-        setTimeout(() => {
-          this.loadFromBackend(sheet, sheetName || undefined);
-        }, 500);
-
-        return { success: false };
-      } else if (result.retryable) {
-        // Server busy - can retry
-        console.warn('⚠️ Server busy, retrying in 2 seconds...');
-        this.syncError.set('Server busy, retrying...');
-
-        // Wait and retry once
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        return this.syncChangeToBackend(payload, revertFn);
-      } else {
-        // Other error
-        console.error('❌ Sync failed:', result.error);
-        this.syncError.set(result.error || 'Sync failed');
-
-        if (revertFn) revertFn();
-        return { success: false };
-      }
+      // Fire and forget
+      console.log('Synced to sheet successfully');
     } catch (err) {
-      console.error('❌ Failed to sync change to sheet:', err);
-      this.syncError.set('Network error - changes may not be saved');
-
-      if (revertFn) revertFn();
-      return { success: false };
-    } finally {
-      this.isSyncing.set(false);
+      console.error('Failed to sync change to sheet:', err);
     }
   }
 
@@ -739,10 +629,7 @@ export class DataService {
       }
 
       return {
-        // Use stable ID from backend if available, fallback to email-based ID or UUID
-        id: row._stableId || `email_${this.cleanString(get('email', 'Email', 'E-mail'))}` || crypto.randomUUID(),
-        _stableId: row._stableId,
-        _lastModified: row._lastModified || 0,
+        id: crypto.randomUUID(),
         fullName: full,
         firstName: fName,
         lastName: lName,

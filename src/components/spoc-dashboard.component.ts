@@ -86,36 +86,6 @@ import { DummyAuthService } from "../services/dummy-auth.service";
         </div>
       </header>
 
-      <!-- Sync Error Toast -->
-      @if (dataService.syncError()) {
-        <div class="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 animate-pulse">
-          <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg shadow-lg flex items-center gap-3">
-            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-            </svg>
-            <span class="text-sm font-medium">{{ dataService.syncError() }}</span>
-            <button 
-              (click)="dataService.syncError.set(null)" 
-              class="ml-2 text-red-500 hover:text-red-700 font-bold">
-              ×
-            </button>
-          </div>
-        </div>
-      }
-
-      <!-- Syncing Indicator (sticky bottom bar) -->
-      @if (dataService.isSyncing()) {
-        <div class="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
-          <div class="bg-blue-600 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 text-sm">
-            <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <span>Syncing changes...</span>
-          </div>
-        </div>
-      }
-
       <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         
         <!-- Controls -->
@@ -583,7 +553,6 @@ export class SpocDashboardComponent implements OnInit, OnDestroy {
   allAttendees = this.dataService.getAttendees();
 
   private syncInterval: any;
-  private toggleDebounceMap = new Map<string, number>();  // Track debounce timeouts by ID
 
   constructor() {
     // If we have an open modal (selectedAttendee), and the data refreshes from the backend (allAttendees),
@@ -615,12 +584,11 @@ export class SpocDashboardComponent implements OnInit, OnDestroy {
   async ngOnInit() {
     await this.initializeDashboard();
 
-    // Auto-sync: 15 seconds for admin mode (more critical), 60 seconds for SPOC mode
-    const syncIntervalMs = this.mode() === 'admin' ? 15 * 1000 : 60 * 1000;
+    // Auto-sync every 1 minutes (300,000 ms)
     this.syncInterval = setInterval(() => {
       console.log('Auto-syncing data...');
       this.syncData();
-    }, syncIntervalMs);
+    }, 1 * 60 * 1000);
   }
 
   ngOnDestroy() {
@@ -781,16 +749,6 @@ export class SpocDashboardComponent implements OnInit, OnDestroy {
 
   handleAttendanceToggle(id: string) {
     if (this.mode() === 'spoc') return;
-
-    // Debounce: Prevent rapid double-clicks (200ms)
-    if (this.toggleDebounceMap.has(id)) {
-      console.log('Debouncing toggle for:', id);
-      return;
-    }
-
-    // Set debounce lock
-    this.toggleDebounceMap.set(id, Date.now());
-    setTimeout(() => this.toggleDebounceMap.delete(id), 200);
 
     this.dataService.toggleAttendance(id);
     const updated = this.allAttendees().find(a => a.id === id);
