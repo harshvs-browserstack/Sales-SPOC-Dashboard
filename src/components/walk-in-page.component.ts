@@ -7,7 +7,7 @@ import { Router } from '@angular/router';
 @Component({
   selector: 'app-walk-in-page',
   standalone: true,
-  imports: [CommonModule, FormsModule],  // REMOVED RouterModule
+  imports: [CommonModule, FormsModule],
   template: `
     <div class="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 flex items-center justify-center p-4">
       <div class="bg-white rounded-lg shadow-xl p-8 max-w-md w-full">
@@ -16,6 +16,18 @@ import { Router } from '@angular/router';
           <h1 class="text-3xl font-bold text-gray-800 mb-2">Walk-in Registration</h1>
           <p class="text-gray-600">{{ eventName() }}</p>
         </div>
+
+        @if (errorMessage()) {
+          <div class="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded shadow-sm" role="alert">
+            <div class="flex items-center gap-2 text-red-700">
+              <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p class="font-bold">Registration Error</p>
+            </div>
+            <p class="text-sm text-red-600 mt-1 ml-7">{{ errorMessage() }}</p>
+          </div>
+        }
 
         @if (!submitted()) {
           <form (ngSubmit)="onSubmit()" class="space-y-4">
@@ -26,6 +38,7 @@ import { Router } from '@angular/router';
                 [(ngModel)]="fullName"
                 name="fullName"
                 required
+                (input)="errorMessage.set('')"
                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 placeholder="John Doe"
               />
@@ -38,9 +51,11 @@ import { Router } from '@angular/router';
                 [(ngModel)]="email"
                 name="email"
                 required
+                (input)="errorMessage.set('')"
                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 placeholder="john@company.com"
               />
+              <p class="text-xs text-gray-500 mt-1">Please use your corporate email address.</p>
             </div>
 
             <div>
@@ -50,6 +65,7 @@ import { Router } from '@angular/router';
                 [(ngModel)]="company"
                 name="company"
                 required
+                (input)="errorMessage.set('')"
                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 placeholder="Acme Inc"
               />
@@ -61,6 +77,7 @@ import { Router } from '@angular/router';
                 type="tel"
                 [(ngModel)]="contact"
                 name="contact"
+                (input)="errorMessage.set('')"
                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 placeholder="+1234567890"
               />
@@ -87,8 +104,6 @@ import { Router } from '@angular/router';
             </button>
           </div>
         }
-
-        <!-- REMOVED: Back to Role Selection link -->
       </div>
     </div>
   `,
@@ -106,6 +121,7 @@ export class WalkInPageComponent implements OnInit {
   contact = signal('');
   submitted = signal(false);
   submitting = signal(false);
+  errorMessage = signal(''); // NEW: Signal for error messages
 
   eventName = signal('Event');
   private currentEvent: any = null;
@@ -113,10 +129,8 @@ export class WalkInPageComponent implements OnInit {
   async ngOnInit() {
     const eventId = this.id();
 
-    // Try to get from localStorage first
     let event = this.dataService.getEventById(eventId);
 
-    // If not found, fetch from master log
     if (!event) {
       console.log('Event not in localStorage, fetching from master log...');
       event = await this.dataService.getEventFromMasterLog(eventId);
@@ -124,9 +138,8 @@ export class WalkInPageComponent implements OnInit {
 
     if (!event) {
       console.error('Event not found');
-      // Don't redirect - just show error in the current page
       this.eventName.set('Event Not Found');
-      alert('Event not found. Please contact the event organizer.');
+      this.errorMessage.set('Event not found. Please contact the event organizer.');
       return;
     }
 
@@ -137,12 +150,37 @@ export class WalkInPageComponent implements OnInit {
   }
 
   async onSubmit() {
+    this.errorMessage.set(''); // Clear previous errors
+
     if (!this.fullName().trim() || !this.email().trim() || !this.company().trim()) {
       return;
     }
 
+    const emailInput = this.email().trim();
+
+    // 1. Valid Email Format Check
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(emailInput)) {
+      this.errorMessage.set("Please enter a valid email address");
+      return;
+    }
+
+    // 2. Corporate Email Validation
+    const emailLower = emailInput.toLowerCase();
+    const isPersonalOrEdu = 
+      emailLower.includes('@gmail.') || 
+      emailLower.includes('@yahoo.') || 
+      emailLower.includes('@zoho.') || 
+      emailLower.includes('.edu') || 
+      emailLower.endsWith('.edu');
+
+    if (isPersonalOrEdu) {
+      this.errorMessage.set("Please enter your Corporate Email ID");
+      return;
+    }
+
     if (!this.currentEvent) {
-      alert('Event not loaded. Please refresh the page.');
+      this.errorMessage.set('Event not loaded. Please refresh the page.');
       return;
     }
 
@@ -151,7 +189,7 @@ export class WalkInPageComponent implements OnInit {
     const success = await this.dataService.addWalkInAttendee(
       {
         fullName: this.fullName(),
-        email: this.email(),
+        email: emailInput,
         company: this.company(),
         contact: this.contact()
       },
@@ -167,7 +205,7 @@ export class WalkInPageComponent implements OnInit {
     if (success) {
       this.submitted.set(true);
     } else {
-      alert('Failed to register. Please try again.');
+      this.errorMessage.set('Failed to register. Please check your connection and try again.');
     }
   }
 
@@ -176,6 +214,7 @@ export class WalkInPageComponent implements OnInit {
     this.email.set('');
     this.company.set('');
     this.contact.set('');
+    this.errorMessage.set('');
     this.submitted.set(false);
   }
 }
