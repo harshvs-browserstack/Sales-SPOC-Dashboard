@@ -79,8 +79,9 @@ import { Router } from '@angular/router';
                 name="contact"
                 (input)="errorMessage.set('')"
                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                placeholder="+1234567890"
+                placeholder="+1 234 567 8900"
               />
+              <p class="text-xs text-gray-500 mt-1">Please include country code (e.g. +1, +91)</p>
             </div>
 
             <button
@@ -121,7 +122,7 @@ export class WalkInPageComponent implements OnInit {
   contact = signal('');
   submitted = signal(false);
   submitting = signal(false);
-  errorMessage = signal(''); // NEW: Signal for error messages
+  errorMessage = signal('');
 
   eventName = signal('Event');
   private currentEvent: any = null;
@@ -150,18 +151,19 @@ export class WalkInPageComponent implements OnInit {
   }
 
   async onSubmit() {
-    this.errorMessage.set(''); // Clear previous errors
+    this.errorMessage.set('');
 
     if (!this.fullName().trim() || !this.email().trim() || !this.company().trim()) {
       return;
     }
 
     const emailInput = this.email().trim();
+    const contactInput = this.contact().trim();
 
     // 1. Valid Email Format Check
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     if (!emailRegex.test(emailInput)) {
-      this.errorMessage.set("Please enter a valid email address");
+      this.errorMessage.set("Please enter a valid email address.");
       return;
     }
 
@@ -175,8 +177,26 @@ export class WalkInPageComponent implements OnInit {
       emailLower.endsWith('.edu');
 
     if (isPersonalOrEdu) {
-      this.errorMessage.set("Please enter your Corporate Email ID");
+      this.errorMessage.set("Please enter your corporate email ID. Personal accounts are not accepted.");
       return;
+    }
+
+    // 3. Contact Number Validation (If provided)
+    if (contactInput) {
+      // Must start with +, followed by 7-15 digits (allowing for spaces/dashes/parens)
+      // Strips non-digit chars to check length, but ensures it starts with +
+      const hasCountryCode = contactInput.startsWith('+');
+      const digitCount = contactInput.replace(/[^0-9]/g, '').length;
+      
+      // International standards usually 7 to 15 digits
+      const isValidLength = digitCount >= 7 && digitCount <= 15;
+      // Allow +, space, -, (, ) and numbers
+      const isValidChars = /^\+[0-9\s\-\(\).]+$/.test(contactInput);
+
+      if (!hasCountryCode || !isValidLength || !isValidChars) {
+        this.errorMessage.set("Please enter a valid international phone number starting with a country code (e.g. +1 ...).");
+        return;
+      }
     }
 
     if (!this.currentEvent) {
@@ -191,7 +211,7 @@ export class WalkInPageComponent implements OnInit {
         fullName: this.fullName(),
         email: emailInput,
         company: this.company(),
-        contact: this.contact()
+        contact: contactInput
       },
       this.currentEvent.sheetUrl,
       {
